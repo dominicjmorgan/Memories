@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Little Moments">
+  <rect width="512" height="512" rx="112" fill="#c96f4a"/>
+  <g fill="none" stroke="#fbf6f1" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="120" y="176" width="272" height="200" rx="28"/>
+    <circle cx="256" cy="276" r="58"/>
+    <path d="M196 176l22-40h76l22 40"/>
+  </g>
+  <circle cx="256" cy="276" r="24" fill="#fbf6f1"/>
+  <g fill="#fbf6f1">
+    <circle cx="360" cy="150" r="9"/>
+    <path d="M392 96c0 24-16 40-16 40s-16-16-16-40a16 16 0 0132 0z" opacity="0.9"/>
+  </g>
+</svg>

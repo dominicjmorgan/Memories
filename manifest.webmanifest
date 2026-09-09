@@ -1,0 +1,19 @@
+{
+  "name": "Little Moments",
+  "short_name": "Moments",
+  "description": "A private journal of photos and voice-memo memories with the people you love.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#fbf6f1",
+  "theme_color": "#c96f4a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
