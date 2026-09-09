@@ -220,21 +220,40 @@ html, body {
   max-height: 92vh;
   overflow: hidden;
 }
+/* When open, lay the dialog out as a column so the body scrolls.
+   Scoped to [open] because author CSS beats the UA `dialog:not([open])`
+   rule — an unscoped `display:flex` would keep CLOSED dialogs visible and
+   floating over the page, intercepting clicks. */
+.sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
 @media (min-width: 640px) {
   .sheet { border-radius: 20px; margin: auto; max-height: 88vh; }
 }
 .sheet::backdrop { background: rgba(30, 20, 15, 0.5); backdrop-filter: blur(2px); }
-.sheet form { display: flex; flex-direction: column; max-height: inherit; }
+/* The composer wraps its content in a <form>; make it the scrolling column too. */
+.sheet form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
   border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; background: var(--surface);
+  background: var(--surface);
+  flex: 0 0 auto;
 }
 .sheet-head h2 { margin: 0; font-family: var(--serif); font-size: 1.25rem; }
-.sheet-body { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.sheet-body {
+  padding: 18px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .sheet-foot {
   display: flex;
   justify-content: flex-end;
@@ -242,6 +261,7 @@ html, body {
   padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--surface);
+  flex: 0 0 auto;
 }
 
 /* Fields */
