@@ -151,6 +151,8 @@ const settings = {
   set apiKey(v) { localStorage.setItem('lm.apiKey', v || ''); },
   get model() { return localStorage.getItem('lm.model') || 'claude-opus-5'; },
   set model(v) { localStorage.setItem('lm.model', v || 'claude-opus-5'); },
+  get workspaceId() { return localStorage.getItem('lm.workspaceId') || ''; },
+  set workspaceId(v) { localStorage.setItem('lm.workspaceId', (v || '').trim()); },
 };
 
 /* ----------------------------- AI summary ----------------------------- */
@@ -178,14 +180,19 @@ async function summarizeWithAI(transcript) {
     '- "tags": an array of 3 to 6 short lowercase tags\n' +
     '- "mood": a single word describing the feeling\n';
 
+  const headers = {
+    'content-type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
+  // Keys that aren't scoped to a workspace need the workspace passed explicitly.
+  const workspaceId = settings.workspaceId.trim();
+  if (workspaceId) headers['anthropic-workspace-id'] = workspaceId;
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers,
     body: JSON.stringify({
       model: settings.model,
       max_tokens: 1200,
@@ -492,6 +499,8 @@ function wireComposer() {
         status.textContent = 'Add your Anthropic API key in Settings (⚙️) to use AI summaries. You can also just write the story yourself.';
       } else if (err.code === 'auth') {
         status.textContent = 'That API key was rejected. Double-check it in Settings.';
+      } else if (/workspace/i.test(err.message || '')) {
+        status.textContent = 'Your API key isn’t tied to a workspace. Open ⚙️ Settings and paste your Workspace ID (starts with “wrkspc_”), then try again.';
       } else {
         status.textContent = 'Could not reach the AI service: ' + (err.message || 'unknown error');
       }
@@ -777,11 +786,13 @@ function wireSettings() {
   $('#settingsBtn').addEventListener('click', () => {
     $('#apiKeyInput').value = settings.apiKey;
     $('#modelSelect').value = settings.model;
+    $('#workspaceIdInput').value = settings.workspaceId;
     $('#dataStatus').hidden = true;
     dlg.showModal();
   });
   $('#apiKeyInput').addEventListener('change', (e) => { settings.apiKey = e.target.value.trim(); });
   $('#modelSelect').addEventListener('change', (e) => { settings.model = e.target.value; });
+  $('#workspaceIdInput').addEventListener('change', (e) => { settings.workspaceId = e.target.value; });
   $('#exportBtn').addEventListener('click', exportData);
   $('#importInput').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
