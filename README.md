@@ -2,6 +2,8 @@
 
 A private journal of photos and voice-memo memories with the people you love.
 
+**▶️ Live app: <https://dominicjmorgan.github.io/Memories/>** — open it on your phone and use “Add to Home Screen” to install it.
+
 Add a few photos of a moment, record a voice memo describing it, and Little
 Moments turns your words into a warm little **story** you can read — while
 keeping the original **audio** so you can always play the memory back in your
