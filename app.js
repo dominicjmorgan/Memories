@@ -212,6 +212,8 @@ async function summarizeWithAI(transcript) {
     try { detail = (await res.json()).error?.message || ''; } catch (_) {}
     const err = new Error(detail || `Request failed (${res.status})`);
     err.code = res.status === 401 ? 'auth' : 'http';
+    err.status = res.status;
+    err.sentWorkspace = !!workspaceId;
     throw err;
   }
 
@@ -504,10 +506,13 @@ function wireComposer() {
         status.textContent = 'Add your Anthropic API key in Settings (⚙️) to use AI summaries. You can also just write the story yourself.';
       } else if (err.code === 'auth') {
         status.textContent = 'That API key was rejected. Double-check it in Settings.';
-      } else if (/workspace/i.test(err.message || '')) {
-        status.textContent = 'Your API key isn’t tied to a workspace. Open ⚙️ Settings and paste your Workspace ID (starts with “wrkspc_”), then try again.';
       } else {
-        status.textContent = 'Could not reach the AI service: ' + (err.message || 'unknown error');
+        const wsNote = err.sentWorkspace === false
+          ? ' — note: no Workspace ID was sent (it may not have saved; re-open ⚙️ Settings and check it is still shown).'
+          : err.sentWorkspace === true
+            ? ' — note: a Workspace ID was sent, so if this still mentions the workspace, the ID may be wrong or the key has no access to it.'
+            : '';
+        status.textContent = 'AI service said: ' + (err.message || 'unknown error') + wsNote;
       }
     } finally {
       btn.disabled = false;
