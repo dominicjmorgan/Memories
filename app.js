@@ -567,6 +567,34 @@ function sortMemories(list) {
   });
 }
 
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Reveal cards as they scroll into view (one shared observer for the feed).
+let revealObserver = null;
+function getRevealObserver() {
+  if (prefersReducedMotion || !('IntersectionObserver' in window)) return null;
+  if (!revealObserver) {
+    revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.remove('pre');
+          entry.target.style.transitionDelay = ''; // keep later hover snappy
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -6% 0px', threshold: 0.04 });
+  }
+  return revealObserver;
+}
+
+// A small, stable tilt derived from the memory id, so cards look hand-placed
+// but never jitter when the feed re-renders.
+function tiltFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff;
+  return (((h % 100) / 100) * 5 - 2.5).toFixed(2); // -2.5deg .. 2.5deg
+}
+
 function renderFeed(list) {
   const feed = $('#feed');
   feed.innerHTML = '';
@@ -578,11 +606,14 @@ function renderFeed(list) {
   }
   empty.hidden = true;
 
-  list.forEach((m) => {
+  const observer = getRevealObserver();
+
+  list.forEach((m, idx) => {
     const card = document.createElement('article');
     card.className = 'card';
     card.tabIndex = 0;
     card.setAttribute('role', 'button');
+    card.style.setProperty('--tilt', tiltFor(m.id) + 'deg');
 
     const photos = m.photos || [];
     if (photos.length) {
@@ -622,7 +653,13 @@ function renderFeed(list) {
     const open = () => openViewer(m.id);
     card.addEventListener('click', open);
     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+
+    if (observer) {
+      card.classList.add('pre');
+      card.style.transitionDelay = ((idx % 6) * 40) + 'ms'; // gentle cascade
+    }
     feed.appendChild(card);
+    if (observer) observer.observe(card);
   });
 }
 
