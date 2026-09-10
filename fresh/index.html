@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#c96f4a" />
+  <title>Little Moments (fresh test)</title>
+  <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="../icons/icon.svg" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtuuad70" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="wrap header-inner">
+      <h1 class="brand">
+        <span class="brand-mark" aria-hidden="true">✽</span>
+        Little Moments
+      </h1>
+      <div class="header-actions">
+        <input id="search" class="search" type="search" placeholder="Search memories…" aria-label="Search memories" />
+        <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap main">
+    <div id="emptyState" class="empty" hidden>
+      <div class="empty-art" aria-hidden="true">📷🎙️</div>
+      <h2>Start your first memory</h2>
+      <p>Add a few photos, record a voice memo about the moment, and let it become a little story you can read and replay.</p>
+      <button class="btn primary" data-action="new">Add a memory</button>
+    </div>
+
+    <div id="feed" class="feed" aria-live="polite"></div>
+  </main>
+
+  <button id="fab" class="fab" title="New memory" aria-label="New memory">＋</button>
+
+  <!-- Composer -->
+  <dialog id="composer" class="sheet">
+    <form id="composerForm" method="dialog">
+      <div class="sheet-head">
+        <h2 id="composerTitle">New memory</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+
+      <div class="sheet-body">
+        <label class="field">
+          <span>Photos</span>
+          <div id="photoGrid" class="photo-grid"></div>
+          <div class="photo-add-row">
+            <label class="btn ghost file-btn">
+              📷 Add photos
+              <input id="photoInput" type="file" accept="image/*" multiple hidden />
+            </label>
+            <label class="btn ghost file-btn">
+              🤳 Take photo
+              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
+            </label>
+          </div>
+        </label>
+
+        <div class="field-row">
+          <label class="field grow">
+            <span>Title</span>
+            <input id="titleInput" type="text" placeholder="A name for this moment" />
+          </label>
+          <label class="field">
+            <span>Date</span>
+            <input id="dateInput" type="date" />
+          </label>
+        </div>
+
+        <div class="field">
+          <span>Voice memo</span>
+          <div class="recorder">
+            <div class="rec-controls">
+              <button type="button" id="recordBtn" class="btn record">
+                <span class="rec-dot" aria-hidden="true"></span>
+                <span id="recordLabel">Record</span>
+              </button>
+              <span id="recTimer" class="rec-timer">0:00</span>
+              <button type="button" id="clearAudioBtn" class="btn ghost small" hidden>Discard</button>
+            </div>
+            <audio id="audioPreview" controls hidden></audio>
+            <p id="recHint" class="hint">Tap record and talk about the moment. Your words are captured as you speak, and the audio is saved so you can play it back later.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <span>Story</span>
+            <button type="button" id="aiBtn" class="btn ai small" title="Summarize the voice memo into a story with AI">✨ Summarize with AI</button>
+          </div>
+          <textarea id="transcriptInput" class="transcript" rows="3" placeholder="What you said (captured while recording — you can edit it)"></textarea>
+          <textarea id="storyInput" class="story" rows="6" placeholder="The written story of this memory will appear here. You can also just write it yourself."></textarea>
+          <div id="aiStatus" class="ai-status" hidden></div>
+        </div>
+
+        <label class="field">
+          <span>Tags</span>
+          <input id="tagsInput" type="text" placeholder="first steps, park, giggles (comma separated)" />
+        </label>
+      </div>
+
+      <div class="sheet-foot">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="saveBtn">Save memory</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog id="settings" class="sheet">
+    <div class="sheet-head">
+      <h2>Settings</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <span>AI summaries</span>
+        <p class="hint">To turn voice memos into stories, the app sends the transcript text straight to Anthropic using your own API key. The key is stored only on this device and is never sent anywhere else. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <label class="field">
+          <span class="sub">Anthropic API key</span>
+          <input id="apiKeyInput" type="password" placeholder="sk-ant-…" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span class="sub">Model</span>
+          <select id="modelSelect">
+            <option value="claude-opus-5">Claude Opus 5 — best quality</option>
+            <option value="claude-sonnet-5">Claude Sonnet 5 — faster &amp; cheaper</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5 — cheapest</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="sub">Workspace ID <span class="hint" style="font-weight:400">(only if your key isn't tied to a workspace)</span></span>
+          <input id="workspaceIdInput" type="text" placeholder="wrkspc_… (optional)" autocomplete="off" spellcheck="false" />
+        </label>
+      </div>
+
+      <div class="field">
+        <span>Your data</span>
+        <p class="hint">Everything lives on this device. Back it up to a file, or restore it on another device.</p>
+        <div class="photo-add-row">
+          <button type="button" id="exportBtn" class="btn ghost">⬇️ Back up to file</button>
+          <label class="btn ghost file-btn">
+            ⬆️ Restore from file
+            <input id="importInput" type="file" accept="application/json,.json" hidden />
+          </label>
+        </div>
+        <div id="dataStatus" class="ai-status" hidden></div>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button type="button" class="btn primary" data-close>Done</button>
+    </div>
+  </dialog>
+
+  <!-- Viewer -->
+  <dialog id="viewer" class="sheet viewer-sheet">
+    <div class="sheet-head">
+      <h2 id="viewerTitle">Memory</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="sheet-body" id="viewerBody"></div>
+    <div class="sheet-foot">
+      <button type="button" class="btn danger ghost" id="viewerDelete">Delete</button>
+      <button type="button" class="btn ghost" id="viewerEdit">Edit</button>
+      <button type="button" class="btn primary" data-close>Close</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="../app.js?v=fresh-mtuuad70"></script>
+</body>
+</html>

@@ -838,7 +838,9 @@ function init() {
 
   refresh();
 
-  if ('serviceWorker' in navigator) {
+  // Skip the service worker on the /fresh/ test page so it stays fully
+  // cache-free (there is no sw.js there to register anyway).
+  if ('serviceWorker' in navigator && !location.pathname.includes('/fresh/')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
