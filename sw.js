@@ -1,7 +1,7 @@
 /* Little Moments service worker — caches the app shell for offline use.
    Memory data lives in IndexedDB, so the app works fully offline once loaded. */
 
-const CACHE = 'little-moments-v3';
+const CACHE = 'little-moments-v4';
 const SHELL = [
   './',
   './index.html',
@@ -31,17 +31,19 @@ self.addEventListener('fetch', (event) => {
   // Never cache the Anthropic API (or any cross-origin request).
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first for the app shell, falling back to network then updating cache.
+  // Network-first: when online, always serve the latest deploy and refresh the
+  // cache; fall back to the cached copy only when the network is unavailable.
+  // This keeps the app fully offline-capable without ever pinning users to a
+  // stale version after an update.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
+    fetch(request)
+      .then((res) => {
         if (res && res.status === 200 && res.type === 'basic') {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(request, copy));
         }
         return res;
-      }).catch(() => cached);
-    })
+      })
+      .catch(() => caches.match(request))
   );
 });
