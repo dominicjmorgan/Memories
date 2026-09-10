@@ -152,7 +152,12 @@ const settings = {
   get model() { return localStorage.getItem('lm.model') || 'claude-opus-5'; },
   set model(v) { localStorage.setItem('lm.model', v || 'claude-opus-5'); },
   get workspaceId() { return localStorage.getItem('lm.workspaceId') || ''; },
-  set workspaceId(v) { localStorage.setItem('lm.workspaceId', (v || '').trim()); },
+  set workspaceId(v) {
+    v = (v || '').trim();
+    // Be forgiving: if a whole URL was pasted, pull out the workspace id.
+    const m = v.match(/wrkspc_[A-Za-z0-9]+/);
+    localStorage.setItem('lm.workspaceId', m ? m[0] : v);
+  },
 };
 
 /* ----------------------------- AI summary ----------------------------- */
@@ -790,9 +795,11 @@ function wireSettings() {
     $('#dataStatus').hidden = true;
     dlg.showModal();
   });
-  $('#apiKeyInput').addEventListener('change', (e) => { settings.apiKey = e.target.value.trim(); });
+  // Use 'input' (not 'change') so pasted values persist immediately, even if
+  // the dialog is closed without the field losing focus first.
+  $('#apiKeyInput').addEventListener('input', (e) => { settings.apiKey = e.target.value.trim(); });
   $('#modelSelect').addEventListener('change', (e) => { settings.model = e.target.value; });
-  $('#workspaceIdInput').addEventListener('change', (e) => { settings.workspaceId = e.target.value; });
+  $('#workspaceIdInput').addEventListener('input', (e) => { settings.workspaceId = e.target.value; });
   $('#exportBtn').addEventListener('click', exportData);
   $('#importInput').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
