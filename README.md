@@ -61,6 +61,14 @@ Netlify, Cloudflare Pages, etc.), open it on your phone, and use your browser's
 
 ## Turning on AI summaries
 
+> **Recommended: use the free proxy.** The most reliable and secure option is a
+> tiny Cloudflare Worker that holds your key server-side and adds the workspace
+> header for you — no key stored on your device, and it works with any Anthropic
+> key. See [`proxy/README.md`](./proxy/README.md), then paste the Worker URL into
+> ⚙️ Settings → **AI proxy URL**. The API-key steps below are the alternative if
+> you'd rather call Anthropic directly.
+
+
 1. Get an Anthropic API key at <https://console.anthropic.com/settings/keys>.
 2. In the app, tap the **⚙️ Settings** icon.
 3. Paste your key and choose a model:

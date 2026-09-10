@@ -8,7 +8,7 @@
   <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
   <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="../icons/icon.svg" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-mtuuofhe" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtuv3a58" />
 </head>
 <body>
   <header class="app-header">
@@ -120,9 +120,13 @@
     <div class="sheet-body">
       <div class="field">
         <span>AI summaries</span>
-        <p class="hint">To turn voice memos into stories, the app sends the transcript text straight to Anthropic using your own API key. The key is stored only on this device and is never sent anywhere else. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</p>
+        <p class="hint">Two ways to enable AI stories. <strong>Recommended:</strong> set up the free proxy (keeps your key off this device) — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">proxy setup</a> — and paste its URL below. <strong>Or:</strong> paste your Anthropic API key to call Anthropic directly.</p>
         <label class="field">
-          <span class="sub">Anthropic API key</span>
+          <span class="sub">AI proxy URL <span class="hint" style="font-weight:400">(recommended)</span></span>
+          <input id="proxyUrlInput" type="url" placeholder="https://little-moments-ai.<you>.workers.dev" autocomplete="off" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="sub">Anthropic API key <span class="hint" style="font-weight:400">(only if not using a proxy)</span></span>
           <input id="apiKeyInput" type="password" placeholder="sk-ant-…" autocomplete="off" />
         </label>
         <label class="field">
@@ -173,6 +177,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-mtuuofhe"></script>
+  <script src="../app.js?v=fresh-mtuv3a58"></script>
 </body>
 </html>

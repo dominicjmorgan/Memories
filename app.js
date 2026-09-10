@@ -158,11 +158,45 @@ const settings = {
     const m = v.match(/wrkspc_[A-Za-z0-9]+/);
     localStorage.setItem('lm.workspaceId', m ? m[0] : v);
   },
+  get proxyUrl() { return localStorage.getItem('lm.proxyUrl') || ''; },
+  set proxyUrl(v) { localStorage.setItem('lm.proxyUrl', (v || '').trim().replace(/\/+$/, '')); },
 };
 
 /* ----------------------------- AI summary ----------------------------- */
 
 async function summarizeWithAI(transcript) {
+  const proxyUrl = settings.proxyUrl.trim();
+
+  // Preferred path: a proxy holds the key server-side; the browser sends only
+  // the transcript.
+  if (proxyUrl) {
+    let res;
+    try {
+      res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+    } catch (e) {
+      const err = new Error('Could not reach the proxy. Check the AI proxy URL in Settings.');
+      err.code = 'http';
+      throw err;
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error?.message || ''; } catch (_) {}
+      const err = new Error(detail || `Proxy request failed (${res.status})`);
+      err.code = res.status === 401 ? 'auth' : 'http';
+      err.status = res.status;
+      err.viaProxy = true;
+      throw err;
+    }
+    const data = await res.json();
+    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    return parseAIJson(text);
+  }
+
+  // Fallback path: call Anthropic directly with the key entered in the browser.
   const key = settings.apiKey.trim();
   if (!key) {
     const err = new Error('no-key');
@@ -503,15 +537,16 @@ function wireComposer() {
     } catch (err) {
       status.className = 'ai-status error';
       if (err.code === 'no-key') {
-        status.textContent = 'Add your Anthropic API key in Settings (⚙️) to use AI summaries. You can also just write the story yourself.';
+        status.textContent = 'To use AI summaries, add an AI proxy URL (recommended) or an Anthropic API key in ⚙️ Settings. You can also just write the story yourself.';
       } else if (err.code === 'auth') {
         status.textContent = 'That API key was rejected. Double-check it in Settings.';
       } else {
-        const wsNote = err.sentWorkspace === false
-          ? ' — note: no Workspace ID was sent (it may not have saved; re-open ⚙️ Settings and check it is still shown).'
-          : err.sentWorkspace === true
-            ? ' — note: a Workspace ID was sent, so if this still mentions the workspace, the ID may be wrong or the key has no access to it.'
-            : '';
+        const wsNote = err.viaProxy ? ''
+          : err.sentWorkspace === false
+            ? ' — note: no Workspace ID was sent (it may not have saved; re-open ⚙️ Settings and check it is still shown).'
+            : err.sentWorkspace === true
+              ? ' — note: a Workspace ID was sent, so if this still mentions the workspace, the ID may be wrong or the key has no access to it.'
+              : '';
         status.textContent = 'AI service said: ' + (err.message || 'unknown error') + wsNote;
       }
     } finally {
@@ -831,6 +866,7 @@ async function refresh() {
 function wireSettings() {
   const dlg = $('#settings');
   $('#settingsBtn').addEventListener('click', () => {
+    $('#proxyUrlInput').value = settings.proxyUrl;
     $('#apiKeyInput').value = settings.apiKey;
     $('#modelSelect').value = settings.model;
     $('#workspaceIdInput').value = settings.workspaceId;
@@ -839,6 +875,7 @@ function wireSettings() {
   });
   // Use 'input' (not 'change') so pasted values persist immediately, even if
   // the dialog is closed without the field losing focus first.
+  $('#proxyUrlInput').addEventListener('input', (e) => { settings.proxyUrl = e.target.value; });
   $('#apiKeyInput').addEventListener('input', (e) => { settings.apiKey = e.target.value.trim(); });
   $('#modelSelect').addEventListener('change', (e) => { settings.model = e.target.value; });
   $('#workspaceIdInput').addEventListener('input', (e) => { settings.workspaceId = e.target.value; });

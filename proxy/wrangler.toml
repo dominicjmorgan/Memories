@@ -1,0 +1,18 @@
+# Cloudflare Worker config for the Little Moments AI proxy.
+# Deploy with the Wrangler CLI (see README.md), or paste worker.js into the
+# Cloudflare dashboard instead.
+
+name = "little-moments-ai"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Non-secret variables. Set your workspace id here if your API key is
+# organization-scoped; otherwise you can delete the WORKSPACE_ID line.
+[vars]
+MODEL = "claude-opus-5"
+# WORKSPACE_ID = "wrkspc_your_workspace_id"
+# Lock usage to your app's origin (recommended once it works):
+# ALLOWED_ORIGINS = "https://dominicjmorgan.github.io"
+
+# The API key is a SECRET — never put it here. Set it with:
+#   npx wrangler secret put ANTHROPIC_API_KEY
