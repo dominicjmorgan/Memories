@@ -152,7 +152,7 @@ body { overflow-x: hidden; } /* gentle card tilts must never scroll the page sid
 }
 .card-photos.n1 img { aspect-ratio: 4 / 3; }
 .photo-fallback { display: grid; place-items: center; aspect-ratio: 3 / 2; background: var(--line); color: var(--ink-soft); font-size: 1.8rem; }
-.viewer-photo.photo-fallback, .viewer-gallery .photo-fallback { width: 100%; border-radius: 14px; aspect-ratio: 4 / 3; }
+.viewer-gallery .photo-fallback { flex: 0 0 100%; width: 100%; height: min(46vh, 460px); aspect-ratio: auto; border-radius: 0; }
 .photo-thumb .photo-fallback { width: 100%; height: 100%; aspect-ratio: auto; font-size: 1.3rem; }
 .card-photos .more { position: relative; }
 .card-photos .more::after {
@@ -361,8 +361,30 @@ textarea { resize: vertical; }
 .ai-status.working { color: var(--accent); }
 
 /* Viewer */
-.viewer-photo { width: 100%; border-radius: 14px; margin-bottom: 12px; }
-.viewer-gallery { display: flex; flex-direction: column; gap: 10px; }
+/* Swipeable photo carousel: keeps the photo area compact so the story
+   sits right below it instead of after a tall stack. */
+.viewer-carousel { margin-bottom: 4px; }
+.viewer-gallery {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-radius: 14px;
+}
+.viewer-gallery::-webkit-scrollbar { display: none; }
+.viewer-photo {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  width: 100%;
+  height: min(46vh, 460px);
+  object-fit: cover;
+  display: block;
+}
+.viewer-dots { display: flex; justify-content: center; gap: 7px; margin-top: 10px; }
+.viewer-dots .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); cursor: pointer; transition: background 0.15s ease; }
+.viewer-dots .dot.on { background: var(--brand); }
 .viewer-date { color: var(--brand-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.02em; }
 .viewer-story { font-family: var(--serif); font-size: 1.1rem; line-height: 1.7; white-space: pre-wrap; }
 .viewer-audio { width: 100%; margin: 6px 0; }

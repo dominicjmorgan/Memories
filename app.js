@@ -779,6 +779,8 @@ function openViewer(id) {
   body.innerHTML = '';
 
   if ((m.photos || []).length) {
+    const carousel = document.createElement('div');
+    carousel.className = 'viewer-carousel';
     const gallery = document.createElement('div');
     gallery.className = 'viewer-gallery';
     m.photos.forEach((p, idx) => {
@@ -790,7 +792,24 @@ function openViewer(id) {
       img.addEventListener('click', () => openLightbox(m.photos, idx));
       gallery.appendChild(img);
     });
-    body.appendChild(gallery);
+    carousel.appendChild(gallery);
+
+    if (m.photos.length > 1) {
+      const dots = document.createElement('div');
+      dots.className = 'viewer-dots';
+      m.photos.forEach((_, i) => {
+        const d = document.createElement('span');
+        d.className = 'dot' + (i === 0 ? ' on' : '');
+        d.addEventListener('click', () => gallery.scrollTo({ left: i * gallery.clientWidth, behavior: 'smooth' }));
+        dots.appendChild(d);
+      });
+      gallery.addEventListener('scroll', () => {
+        const i = Math.round(gallery.scrollLeft / gallery.clientWidth);
+        Array.from(dots.children).forEach((d, idx) => d.classList.toggle('on', idx === i));
+      }, { passive: true });
+      carousel.appendChild(dots);
+    }
+    body.appendChild(carousel);
   }
 
   const date = document.createElement('div');
