@@ -32,6 +32,10 @@
 }
 
 * { box-sizing: border-box; }
+/* Ensure the `hidden` attribute always wins over element display rules
+   (e.g. .btn sets display:inline-flex, which would otherwise show a
+   [hidden] button — including the album view's Edit/Delete). */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
