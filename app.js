@@ -1063,6 +1063,178 @@ function wrapCentered(ctx, text, cx, y, maxWidth, lineHeight, maxLines) {
   return y;
 }
 
+/* ---- Hand-drawn doodles for the postcard ---- */
+
+function markerStyle(ctx, s, color) {
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(6, s * 0.075);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+const DOODLES = {
+  sun(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const r = s * 0.22;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r * 1.5, cy + Math.sin(a) * r * 1.5);
+      ctx.lineTo(cx + Math.cos(a) * r * 2.1, cy + Math.sin(a) * r * 2.1);
+      ctx.stroke();
+    }
+  },
+  cloud(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const r = s * 0.2, by = cy + r * 0.6;
+    ctx.beginPath();
+    ctx.arc(cx - r * 1.1, by - r * 0.1, r * 0.9, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.arc(cx - r * 0.3, by - r, r, Math.PI, Math.PI * 1.9);
+    ctx.arc(cx + r * 0.9, by - r * 0.8, r * 0.85, Math.PI * 1.35, Math.PI * 2.1);
+    ctx.arc(cx + r * 1.35, by - r * 0.05, r * 0.7, Math.PI * 1.7, Math.PI * 0.5);
+    ctx.closePath(); ctx.stroke();
+  },
+  rain(ctx, cx, cy, s, color) {
+    DOODLES.cloud(ctx, cx, cy - s * 0.12, s * 0.85, color);
+    markerStyle(ctx, s, color);
+    for (let i = -1; i <= 1; i++) {
+      const x = cx + i * s * 0.2, y = cy + s * 0.26;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - s * 0.06, y + s * 0.16); ctx.stroke();
+    }
+  },
+  wave(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const w = s * 0.9;
+    for (let row = 0; row < 2; row++) {
+      const y = cy - s * 0.12 + row * s * 0.26;
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2, y);
+      ctx.quadraticCurveTo(cx - w / 4, y - s * 0.14, cx, y);
+      ctx.quadraticCurveTo(cx + w / 4, y + s * 0.14, cx + w / 2, y);
+      ctx.stroke();
+    }
+  },
+  heart(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const r = s * 0.5;
+    ctx.save(); ctx.translate(cx, cy - r * 0.15); ctx.beginPath();
+    ctx.moveTo(0, r * 0.28);
+    ctx.bezierCurveTo(r * 0.5, -r * 0.42, r * 1.05, r * 0.12, 0, r * 0.72);
+    ctx.bezierCurveTo(-r * 1.05, r * 0.12, -r * 0.5, -r * 0.42, 0, r * 0.28);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  },
+  star(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const outer = s * 0.5, inner = s * 0.22;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 ? inner : outer, a = -Math.PI / 2 + i * Math.PI / 5;
+      const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+  },
+  balloon(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const rx = s * 0.26, ry = s * 0.32, topY = cy - s * 0.12;
+    ctx.beginPath(); ctx.ellipse(cx, topY, rx, ry, 0, 0, 7); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, topY + ry); ctx.lineTo(cx - s * 0.04, topY + ry + s * 0.06);
+    ctx.lineTo(cx + s * 0.04, topY + ry + s * 0.06); ctx.closePath(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, topY + ry + s * 0.06);
+    ctx.quadraticCurveTo(cx + s * 0.12, cy + s * 0.28, cx - s * 0.04, cy + s * 0.44);
+    ctx.stroke();
+  },
+  cake(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const w = s * 0.68, h = s * 0.32, x = cx - w / 2, y = cy - h * 0.05;
+    ctx.strokeRect(x, y, w, h);
+    ctx.beginPath(); ctx.moveTo(x - s * 0.06, y + h); ctx.lineTo(x + w + s * 0.06, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx, y - s * 0.18); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, y - s * 0.23, s * 0.035, s * 0.06, 0, 0, 7); ctx.fill();
+  },
+  tree(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    ctx.beginPath(); ctx.arc(cx, cy - s * 0.08, s * 0.27, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.19); ctx.lineTo(cx, cy + s * 0.4); ctx.stroke();
+  },
+  flower(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const pr = s * 0.13, dist = s * 0.2;
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, pr, 0, 7); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.1, 0, 7); ctx.fill();
+  },
+  paw(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    ctx.beginPath(); ctx.ellipse(cx, cy + s * 0.13, s * 0.22, s * 0.18, 0, 0, 7); ctx.fill();
+    for (const [tx, ty] of [[-0.22, -0.16], [-0.075, -0.27], [0.075, -0.27], [0.22, -0.16]]) {
+      ctx.beginPath(); ctx.ellipse(cx + tx * s, cy + ty * s, s * 0.075, s * 0.1, 0, 0, 7); ctx.fill();
+    }
+  },
+  smiley(ctx, cx, cy, s, color) {
+    markerStyle(ctx, s, color);
+    const r = s * 0.36;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx - r * 0.35, cy - r * 0.2, r * 0.09, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.35, cy - r * 0.2, r * 0.09, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy + r * 0.05, r * 0.5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  },
+};
+
+const DOODLE_KEYWORDS = [
+  ['cake', ['birthday', 'cake', 'candle', 'candles']],
+  ['balloon', ['party', 'balloon', 'celebrate', 'celebration']],
+  ['rain', ['rain', 'rainy', 'puddle', 'storm', 'wet', 'splash', 'umbrella']],
+  ['wave', ['beach', 'ocean', 'sea', 'swim', 'pool', 'lake', 'water', 'boat', 'sail', 'wave', 'waves', 'river']],
+  ['sun', ['sun', 'sunny', 'summer', 'warm', 'morning', 'sunshine', 'picnic']],
+  ['tree', ['park', 'tree', 'forest', 'woods', 'autumn', 'leaves', 'nature', 'hike', 'camping']],
+  ['flower', ['flower', 'flowers', 'garden', 'spring', 'bloom', 'daisy', 'petal']],
+  ['paw', ['dog', 'puppy', 'cat', 'kitten', 'pet', 'animal', 'zoo', 'duck', 'farm', 'bunny']],
+  ['balloon', ['fair', 'carnival']],
+  ['star', ['star', 'stars', 'night', 'wish', 'magic', 'sparkle', 'wonder', 'dream', 'proud']],
+  ['smiley', ['laugh', 'laughing', 'giggle', 'giggles', 'giggling', 'smile', 'happy', 'joy', 'funny', 'silly', 'grin']],
+  ['heart', ['love', 'cuddle', 'hug', 'hugs', 'sweet', 'tender', 'kiss', 'snuggle', 'adore', 'family']],
+  ['cloud', ['cloud', 'clouds', 'sky']],
+];
+
+function chooseDoodles(m) {
+  const text = [m.mood, (m.tags || []).join(' '), m.title, m.caption, m.story, m.transcript]
+    .join(' ').toLowerCase();
+  const picked = [];
+  for (const [name, words] of DOODLE_KEYWORDS) {
+    if (picked.length >= 3) break;
+    if (words.some((w) => text.includes(w)) && !picked.includes(name)) picked.push(name);
+  }
+  for (const f of ['heart', 'star', 'sun']) {
+    if (picked.length >= 3) break;
+    if (!picked.includes(f)) picked.push(f);
+  }
+  return picked.slice(0, 3);
+}
+
+function drawDoodleRow(ctx, cx, cy, names, size, seed) {
+  const colors = ['#c96f4a', '#7a8b6f', '#a9542f', '#d99a4e'];
+  const gap = size * 0.5;
+  const total = names.length * size + (names.length - 1) * gap;
+  let x = cx - total / 2 + size / 2;
+  names.forEach((name, i) => {
+    const fn = DOODLES[name] || DOODLES.star;
+    const rot = (((i + seed) * 47 % 19) - 9) * Math.PI / 180; // gentle, deterministic tilt
+    ctx.save();
+    ctx.translate(x, cy);
+    ctx.rotate(rot);
+    fn(ctx, 0, 0, size, colors[i % colors.length]);
+    ctx.restore();
+    x += size + gap;
+  });
+}
+
 async function buildPostcard(m) {
   try { await document.fonts.load('600 40px "Caveat"'); await document.fonts.ready; } catch (_) {}
 
@@ -1121,11 +1293,22 @@ async function buildPostcard(m) {
   if (caption) {
     ctx.fillStyle = '#6b615a';
     ctx.font = 'italic 31px Georgia, "Times New Roman", serif';
-    wrapCentered(ctx, caption, W / 2, y, W - 200, 42, 3);
+    y = wrapCentered(ctx, caption, W / 2, y, W - 200, 42, 3);
+  }
+
+  // Fill the space beneath the caption with a trio of hand-drawn doodles
+  // picked from the memory's mood / tags / words.
+  const bandTop = y + 18;
+  const bandBottom = H - 100; // keep clear of the footer
+  const band = bandBottom - bandTop;
+  if (band > 80) {
+    const size = Math.max(70, Math.min(132, band * 0.72));
+    drawDoodleRow(ctx, W / 2, bandTop + band / 2, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
   }
 
   ctx.fillStyle = '#c96f4a';
   ctx.font = '700 34px "Caveat", cursive';
+  ctx.textAlign = 'center';
   ctx.fillText('✽ Little Moments', W / 2, H - 54);
 
   return await new Promise((res) => canvas.toBlob((b) => res(b), 'image/jpeg', 0.92));
