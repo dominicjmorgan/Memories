@@ -164,36 +164,68 @@ const settings = {
 
 /* ----------------------------- AI summary ----------------------------- */
 
-async function summarizeWithAI(transcript) {
+const AI_SYSTEM =
+  'You are a delightful family storyteller. Turn a parent\'s voice memo (and any ' +
+  'photos) into a FUN, playful, entertaining little story about a moment with their ' +
+  'child — the kind of thing that is a joy to read aloud later. Write in the first ' +
+  'person as the parent: warm, whimsical, full of vivid sensory detail, playful ' +
+  'phrasing and gentle humor. You may add small imaginative flourishes to bring the ' +
+  'scene to life, but never invent significant facts — names, who was there, where ' +
+  'they were, or what actually happened — that are not supported by the memo or the ' +
+  'photos. If photos are provided, look closely and weave in real details you can see ' +
+  '(expressions, setting, weather, clothes, tiny moments).';
+
+function buildAiPrompt(transcript, imageCount) {
+  const memo = transcript
+    ? `Here's my voice memo / notes about this memory:\n\n"""${transcript}"""\n\n`
+    : 'I did not leave any words for this one — build the story from the photos.\n\n';
+  const photos = imageCount
+    ? `I'm also attaching ${imageCount} photo${imageCount === 1 ? '' : 's'} from this moment — use what you see to make the story richer and more accurate.\n\n`
+    : '';
+  return (
+    memo + photos +
+    'Write it up as a fun, playful, entertaining story of this memory. ' +
+    'Return ONLY a JSON object (no markdown, no commentary) with these fields:\n' +
+    '- "title": a short, playful, evocative title (max ~6 words)\n' +
+    '- "story": 2 to 4 short, entertaining paragraphs in the first person\n' +
+    '- "tags": an array of 3 to 6 short lowercase tags\n' +
+    '- "mood": a single word describing the feeling\n'
+  );
+}
+
+async function summarizeWithAI(transcript, images) {
+  images = images || [];
+  const content = images.map((im) => ({
+    type: 'image',
+    source: { type: 'base64', media_type: im.media_type, data: im.data },
+  }));
+  content.push({ type: 'text', text: buildAiPrompt(transcript, images.length) });
+
+  // One payload for both paths; only the destination and auth differ.
+  const payload = {
+    model: settings.model,
+    max_tokens: 1200,
+    system: AI_SYSTEM,
+    messages: [{ role: 'user', content }],
+  };
+
   const proxyUrl = settings.proxyUrl.trim();
 
-  // Preferred path: a proxy holds the key server-side; the browser sends only
-  // the transcript.
+  // Preferred path: a pass-through proxy holds the key server-side.
   if (proxyUrl) {
     let res;
     try {
       res = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify(payload),
       });
     } catch (e) {
       const err = new Error('Could not reach the proxy. Check the AI proxy URL in Settings.');
       err.code = 'http';
       throw err;
     }
-    if (!res.ok) {
-      let detail = '';
-      try { detail = (await res.json()).error?.message || ''; } catch (_) {}
-      const err = new Error(detail || `Proxy request failed (${res.status})`);
-      err.code = res.status === 401 ? 'auth' : 'http';
-      err.status = res.status;
-      err.viaProxy = true;
-      throw err;
-    }
-    const data = await res.json();
-    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-    return parseAIJson(text);
+    return await handleAiResponse(res, { viaProxy: true });
   }
 
   // Fallback path: call Anthropic directly with the key entered in the browser.
@@ -203,62 +235,57 @@ async function summarizeWithAI(transcript) {
     err.code = 'no-key';
     throw err;
   }
-
-  const system =
-    'You help a parent turn a spoken voice memo into a warm, first-person memory ' +
-    'story about a moment with their child. Stay faithful to what was actually said — ' +
-    'never invent people, places, or events that are not in the transcript. Keep the ' +
-    "parent's voice and real details.";
-
-  const prompt =
-    'Here is the transcript of a voice memo about a memory:\n\n' +
-    `"""${transcript}"""\n\n` +
-    'Return ONLY a JSON object (no markdown, no commentary) with these fields:\n' +
-    '- "title": a short, evocative title (max ~6 words)\n' +
-    '- "story": 2 to 4 warm paragraphs in the first person, telling the memory as a little story\n' +
-    '- "tags": an array of 3 to 6 short lowercase tags\n' +
-    '- "mood": a single word describing the feeling\n';
-
   const headers = {
     'content-type': 'application/json',
     'x-api-key': key,
     'anthropic-version': '2023-06-01',
     'anthropic-dangerous-direct-browser-access': 'true',
   };
-  // Keys that aren't scoped to a workspace need the workspace passed explicitly.
   const workspaceId = settings.workspaceId.trim();
   if (workspaceId) headers['anthropic-workspace-id'] = workspaceId;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: settings.model,
-      max_tokens: 1200,
-      output_config: { effort: 'low' },
-      system,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    body: JSON.stringify(payload),
   });
+  return await handleAiResponse(res, { sentWorkspace: !!workspaceId });
+}
 
+async function handleAiResponse(res, meta) {
   if (!res.ok) {
     let detail = '';
     try { detail = (await res.json()).error?.message || ''; } catch (_) {}
     const err = new Error(detail || `Request failed (${res.status})`);
     err.code = res.status === 401 ? 'auth' : 'http';
     err.status = res.status;
-    err.sentWorkspace = !!workspaceId;
+    Object.assign(err, meta);
     throw err;
   }
-
   const data = await res.json();
   const text = (data.content || [])
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim();
-
   return parseAIJson(text);
+}
+
+// Downscale the memory's photos and base64-encode them for the vision model.
+async function prepareImagesForAI(photos, max = 4) {
+  const out = [];
+  for (const p of (photos || []).slice(0, max)) {
+    try {
+      const small = await processImage(p.blob, 1024, 0.8);
+      const dataUrl = await blobToDataURL(small);
+      const comma = dataUrl.indexOf(',');
+      out.push({
+        media_type: (small.type || 'image/jpeg'),
+        data: dataUrl.slice(comma + 1),
+      });
+    } catch (_) { /* skip a photo that can't be processed */ }
+  }
+  return out;
 }
 
 function parseAIJson(text) {
@@ -516,19 +543,22 @@ function wireComposer() {
   $('#aiBtn').addEventListener('click', async () => {
     const transcript = $('#transcriptInput').value.trim();
     const status = $('#aiStatus');
-    if (!transcript) {
+    if (!transcript && composer.photos.length === 0) {
       status.hidden = false;
       status.className = 'ai-status error';
-      status.textContent = 'Record a voice memo or type a few words first, then I can shape them into a story.';
+      status.textContent = 'Record a voice memo, type a few words, or add a photo first — then I can spin it into a story.';
       return;
     }
     const btn = $('#aiBtn');
     btn.disabled = true;
     status.hidden = false;
     status.className = 'ai-status working';
-    status.textContent = '✨ Turning your words into a story…';
+    status.textContent = composer.photos.length
+      ? '✨ Reading your photos and writing a playful story…'
+      : '✨ Turning your words into a playful story…';
     try {
-      const result = await summarizeWithAI(transcript);
+      const images = await prepareImagesForAI(composer.photos);
+      const result = await summarizeWithAI(transcript, images);
       if (result.story) $('#storyInput').value = result.story;
       if (result.title && !$('#titleInput').value.trim()) $('#titleInput').value = result.title;
       if (result.tags.length && !$('#tagsInput').value.trim()) $('#tagsInput').value = result.tags.join(', ');

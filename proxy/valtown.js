@@ -1,38 +1,21 @@
-/* Little Moments — AI summary proxy for Val Town (https://val.town)
+/* Little Moments — AI proxy for Val Town (https://val.town), pass-through version.
  *
- * The easiest way to host the proxy: no CLI, no build, no "assets" — just paste
- * this into an HTTP val and set one environment variable.
+ * Paste this into an HTTP val and set one environment variable. It forwards the
+ * request the app sends straight to Anthropic (adding your key), so the app owns
+ * the prompt and you never need to edit this val again when the story changes.
  *
  * Setup:
- *   1. Sign up free at https://val.town (you can use Google to sign in).
- *   2. Click "New" → "HTTP val".
- *   3. Delete the sample code and paste this whole file in.
- *   4. Add your key: click your username → Settings → Environment Variables,
- *      add ANTHROPIC_API_KEY = your Anthropic key.
- *      (Optional) add WORKSPACE_ID = wrkspc_… if your key is org-scoped,
- *      and MODEL = claude-opus-5 / claude-sonnet-5 / claude-haiku-4-5.
- *   5. Copy the val's HTTP endpoint URL (shown at the top of the val).
- *   6. In the Little Moments app → ⚙️ Settings → paste it into "AI proxy URL",
- *      and leave the API key field blank.
+ *   1. Sign up free at https://val.town (Google sign-in works).
+ *   2. New → HTTP val. Delete the sample and paste this whole file in.
+ *   3. Your username → Settings → Environment Variables:
+ *        ANTHROPIC_API_KEY = your Anthropic key   (required)
+ *        WORKSPACE_ID       = wrkspc_…            (only for org-scoped keys)
+ *        MODEL              = claude-opus-5        (optional; forces a model)
+ *   4. Copy the val's HTTP endpoint URL.
+ *   5. App → ⚙️ Settings → paste into "AI proxy URL", leave the API key blank.
  */
 
-const SYSTEM =
-  'You help a parent turn a spoken voice memo into a warm, first-person memory ' +
-  'story about a moment with their child. Stay faithful to what was actually said — ' +
-  'never invent people, places, or events that are not in the transcript. Keep the ' +
-  "parent's voice and real details.";
-
-function buildPrompt(transcript) {
-  return (
-    'Here is the transcript of a voice memo about a memory:\n\n' +
-    `"""${transcript}"""\n\n` +
-    'Return ONLY a JSON object (no markdown, no commentary) with these fields:\n' +
-    '- "title": a short, evocative title (max ~6 words)\n' +
-    '- "story": 2 to 4 warm paragraphs in the first person, telling the memory as a little story\n' +
-    '- "tags": an array of 3 to 6 short lowercase tags\n' +
-    '- "mood": a single word describing the feeling\n'
-  );
-}
+const MAX_TOKENS_CAP = 2000;
 
 export default async function (req) {
   const cors = {
@@ -42,16 +25,21 @@ export default async function (req) {
     'Access-Control-Max-Age': '86400',
   };
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-  if (req.method !== 'POST') return json({ error: { message: 'Use POST with a JSON { transcript } body.' } }, 405, cors);
+  if (req.method !== 'POST') return json({ error: { message: 'Use POST with a JSON Anthropic Messages body.' } }, 405, cors);
 
   const key = Deno.env.get('ANTHROPIC_API_KEY');
   if (!key) return json({ error: { message: 'The proxy is missing its ANTHROPIC_API_KEY environment variable.' } }, 500, cors);
 
   let body;
   try { body = await req.json(); } catch (_) { return json({ error: { message: 'Invalid JSON body.' } }, 400, cors); }
-  const transcript = body && typeof body.transcript === 'string' ? body.transcript.trim() : '';
-  if (!transcript) return json({ error: { message: 'Missing "transcript".' } }, 400, cors);
-  if (transcript.length > 20000) return json({ error: { message: 'Transcript is too long.' } }, 413, cors);
+  if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
+    return json({ error: { message: 'Body must be an Anthropic Messages request with a "messages" array.' } }, 400, cors);
+  }
+
+  const forcedModel = Deno.env.get('MODEL');
+  if (forcedModel) body.model = forcedModel;
+  else if (!body.model) body.model = 'claude-opus-5';
+  body.max_tokens = Math.min(Number(body.max_tokens) || 1200, MAX_TOKENS_CAP);
 
   const headers = {
     'content-type': 'application/json',
@@ -64,15 +52,8 @@ export default async function (req) {
   const upstream = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers,
-    body: JSON.stringify({
-      model: Deno.env.get('MODEL') || 'claude-opus-5',
-      max_tokens: 1200,
-      output_config: { effort: 'low' },
-      system: SYSTEM,
-      messages: [{ role: 'user', content: buildPrompt(transcript) }],
-    }),
+    body: JSON.stringify(body),
   });
-
   const text = await upstream.text();
   return new Response(text, { status: upstream.status, headers: { ...cors, 'content-type': 'application/json' } });
 }

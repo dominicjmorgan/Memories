@@ -1,33 +1,17 @@
-/* Little Moments — AI summary proxy (Cloudflare Worker)
+/* Little Moments — AI proxy (Cloudflare Worker), pass-through version.
  *
- * Holds your Anthropic API key as a server-side secret so it never lives in
- * the browser, and adds the workspace header for you. The app sends only a
- * transcript; the Worker builds the request, calls Anthropic, and returns the
- * result.
+ * Holds your Anthropic API key as a server-side secret so it never lives in the
+ * browser, and (optionally) adds the workspace header. It forwards the request
+ * the app sends straight to Anthropic — so the app owns the prompt, and you
+ * never need to edit this Worker again when the story style changes.
  *
  * Required secret:  ANTHROPIC_API_KEY
- * Optional vars:    WORKSPACE_ID     (wrkspc_… — needed only for org-scoped keys)
- *                   MODEL            (default: claude-opus-5)
+ * Optional vars:    WORKSPACE_ID     (wrkspc_… — only for org-scoped keys)
+ *                   MODEL            (force a model, overriding the app's choice)
  *                   ALLOWED_ORIGINS  (comma-separated; e.g. https://dominicjmorgan.github.io)
  */
 
-const SYSTEM =
-  'You help a parent turn a spoken voice memo into a warm, first-person memory ' +
-  'story about a moment with their child. Stay faithful to what was actually said — ' +
-  'never invent people, places, or events that are not in the transcript. Keep the ' +
-  "parent's voice and real details.";
-
-function buildPrompt(transcript) {
-  return (
-    'Here is the transcript of a voice memo about a memory:\n\n' +
-    `"""${transcript}"""\n\n` +
-    'Return ONLY a JSON object (no markdown, no commentary) with these fields:\n' +
-    '- "title": a short, evocative title (max ~6 words)\n' +
-    '- "story": 2 to 4 warm paragraphs in the first person, telling the memory as a little story\n' +
-    '- "tags": an array of 3 to 6 short lowercase tags\n' +
-    '- "mood": a single word describing the feeling\n'
-  );
-}
+const MAX_TOKENS_CAP = 2000; // safety clamp so the key can't be abused for huge outputs
 
 export default {
   async fetch(request, env) {
@@ -46,9 +30,8 @@ export default {
     };
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    if (request.method !== 'POST') return err('Use POST with a JSON { transcript } body.', 405, cors);
+    if (request.method !== 'POST') return err('Use POST with a JSON Anthropic Messages body.', 405, cors);
 
-    // Optional origin lock so only your app can use the key.
     if (allowed.length && origin && !allowed.includes(origin)) {
       return err('This origin is not allowed to use the proxy.', 403, cors);
     }
@@ -58,9 +41,14 @@ export default {
 
     let body;
     try { body = await request.json(); } catch (_) { return err('Invalid JSON body.', 400, cors); }
-    const transcript = body && typeof body.transcript === 'string' ? body.transcript.trim() : '';
-    if (!transcript) return err('Missing "transcript".', 400, cors);
-    if (transcript.length > 20000) return err('Transcript is too long.', 413, cors);
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
+      return err('Body must be an Anthropic Messages request with a "messages" array.', 400, cors);
+    }
+
+    // Safety clamps: force/limit the fields that control cost.
+    if (env.MODEL) body.model = env.MODEL;
+    else if (!body.model) body.model = 'claude-opus-5';
+    body.max_tokens = Math.min(Number(body.max_tokens) || 1200, MAX_TOKENS_CAP);
 
     const headers = {
       'content-type': 'application/json',
@@ -74,19 +62,12 @@ export default {
       upstream = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: env.MODEL || 'claude-opus-5',
-          max_tokens: 1200,
-          output_config: { effort: 'low' },
-          system: SYSTEM,
-          messages: [{ role: 'user', content: buildPrompt(transcript) }],
-        }),
+        body: JSON.stringify(body),
       });
     } catch (e) {
       return err('Could not reach Anthropic: ' + (e && e.message ? e.message : 'network error'), 502, cors);
     }
 
-    // Pass Anthropic's response (success or error) straight back to the app.
     const text = await upstream.text();
     return new Response(text, {
       status: upstream.status,
