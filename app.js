@@ -73,6 +73,24 @@ function revokeAll() {
   objectUrls.clear();
 }
 
+// Point an <img> at a blob using a one-shot object URL that is revoked only
+// AFTER it loads (the image stays displayed) or on error. This avoids the
+// wholesale revocation that could kill URLs still referenced by the page
+// (e.g. lazy-loaded or not-yet-revealed feed cards), which showed as broken
+// image icons.
+function setImg(img, blob) {
+  const url = URL.createObjectURL(blob);
+  img.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  img.addEventListener('error', () => {
+    URL.revokeObjectURL(url);
+    const ph = document.createElement('div');
+    ph.className = 'photo-fallback';
+    ph.textContent = '📷';
+    if (img.parentNode) img.parentNode.replaceChild(ph, img);
+  }, { once: true });
+  img.src = url;
+}
+
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');
@@ -438,7 +456,7 @@ function renderPhotoGrid() {
     const div = document.createElement('div');
     div.className = 'photo-thumb';
     const img = document.createElement('img');
-    img.src = urlFor(p.blob);
+    setImg(img, p.blob);
     img.alt = 'Selected photo';
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -692,7 +710,7 @@ function renderFeed(list) {
       photos.slice(0, 4).forEach((p, i) => {
         const img = document.createElement('img');
         img.loading = 'lazy';
-        img.src = urlFor(p.blob);
+        setImg(img, p.blob);
         img.alt = m.title || 'Memory photo';
         if (i === 3 && photos.length > 4) {
           const holder = document.createElement('div');
@@ -760,7 +778,7 @@ function openViewer(id) {
     m.photos.forEach((p) => {
       const img = document.createElement('img');
       img.className = 'viewer-photo';
-      img.src = urlFor(p.blob);
+      setImg(img, p.blob);
       img.alt = m.title || 'Memory photo';
       gallery.appendChild(img);
     });
