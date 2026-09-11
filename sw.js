@@ -1,7 +1,7 @@
 /* Little Moments service worker — caches the app shell for offline use.
    Memory data lives in IndexedDB, so the app works fully offline once loaded. */
 
-const CACHE = 'little-moments-v19';
+const CACHE = 'little-moments-v20';
 const SHELL = [
   './',
   './index.html',
@@ -9,6 +9,9 @@ const SHELL = [
   './app.js',
   './manifest.webmanifest',
   './icons/icon.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {

@@ -344,14 +344,31 @@ textarea { resize: vertical; }
 /* Photo grid in composer */
 .photo-grid { display: flex; flex-wrap: wrap; gap: 8px; }
 .photo-grid:empty { display: none; }
-.photo-thumb { position: relative; width: 84px; height: 84px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.photo-thumb { position: relative; width: 100px; height: 100px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.photo-thumb button {
+.photo-thumb .thumb-x {
   position: absolute; top: 3px; right: 3px;
   width: 22px; height: 22px; border-radius: 50%;
   border: none; background: rgba(0,0,0,0.6); color: #fff;
   cursor: pointer; font-size: 0.8rem; line-height: 1; display: grid; place-items: center;
 }
+.photo-thumb .thumb-cover {
+  position: absolute; top: 4px; left: 4px;
+  background: var(--brand); color: #fff;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 2px 6px; border-radius: 999px;
+}
+.photo-thumb .thumb-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: center; gap: 2px;
+  background: rgba(0,0,0,0.5); padding: 2px 0;
+}
+.photo-thumb .thumb-bar button {
+  border: none; background: transparent; color: #fff;
+  width: 26px; height: 22px; font-size: 0.8rem; line-height: 1; cursor: pointer; border-radius: 6px;
+}
+.photo-thumb .thumb-bar button:disabled { opacity: 0.35; cursor: default; }
+.photo-thumb .thumb-bar button:not(:disabled):active { background: rgba(255,255,255,0.25); }
 .photo-add-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .file-btn { cursor: pointer; }
 
@@ -507,3 +524,4 @@ textarea { resize: vertical; }
 .checkbox-row { flex-direction: row !important; align-items: center; gap: 10px; cursor: pointer; }
 .checkbox-row input { width: auto; }
 body.album-mode .fab { display: none; }
+.chip.chip-new { background: color-mix(in srgb, var(--brand) 20%, #ffffff); color: var(--brand-dark); }

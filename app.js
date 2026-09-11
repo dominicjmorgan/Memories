@@ -476,24 +476,75 @@ function resetComposer() {
   status.className = 'ai-status';
 }
 
+// Re-render after the current click fully settles. Rebuilding the grid
+// synchronously inside a button's click handler lets the browser re-target
+// the in-flight click to a sibling button (e.g. firing "remove" too).
+function scheduleGridRender() {
+  setTimeout(renderPhotoGrid, 0);
+}
+
+function movePhoto(id, dir) {
+  const i = composer.photos.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= composer.photos.length) return;
+  const arr = composer.photos;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  scheduleGridRender();
+}
+
+function makeCover(id) {
+  const i = composer.photos.findIndex((x) => x.id === id);
+  if (i <= 0) return;
+  const [p] = composer.photos.splice(i, 1);
+  composer.photos.unshift(p);
+  scheduleGridRender();
+}
+
 function renderPhotoGrid() {
   const grid = $('#photoGrid');
   grid.innerHTML = '';
-  composer.photos.forEach((p) => {
+  const multi = composer.photos.length > 1;
+  composer.photos.forEach((p, idx) => {
     const div = document.createElement('div');
     div.className = 'photo-thumb';
     const img = document.createElement('img');
     setImg(img, p.blob);
     img.alt = 'Selected photo';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = '✕';
-    btn.title = 'Remove photo';
-    btn.addEventListener('click', () => {
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'thumb-x';
+    remove.textContent = '✕';
+    remove.title = 'Remove photo';
+    remove.addEventListener('click', () => {
       composer.photos = composer.photos.filter((x) => x.id !== p.id);
-      renderPhotoGrid();
+      scheduleGridRender();
     });
-    div.append(img, btn);
+    div.append(img, remove);
+
+    if (idx === 0) {
+      const badge = document.createElement('span');
+      badge.className = 'thumb-cover';
+      badge.textContent = '★ Cover';
+      div.appendChild(badge);
+    }
+
+    if (multi) {
+      const bar = document.createElement('div');
+      bar.className = 'thumb-bar';
+      const mk = (label, title, fn, disabled) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = label; b.title = title;
+        if (disabled) b.disabled = true; else b.addEventListener('click', fn);
+        return b;
+      };
+      bar.append(
+        mk('◀', 'Move earlier', () => movePhoto(p.id, -1), idx === 0),
+        mk('★', 'Make cover', () => makeCover(p.id), idx === 0),
+        mk('▶', 'Move later', () => movePhoto(p.id, 1), idx === composer.photos.length - 1),
+      );
+      div.appendChild(bar);
+    }
     grid.appendChild(div);
   });
 }
@@ -678,6 +729,7 @@ function wireComposer() {
 /* ----------------------------- Rendering feed ----------------------------- */
 
 let memoriesCache = [];
+let albumNewIds = new Set(); // ids of memories added since a family viewer last visited
 
 function sortMemories(list) {
   return list.slice().sort((a, b) => {
@@ -764,6 +816,7 @@ function renderFeed(list) {
       `<h3 class="card-title">${escapeHtml(m.title || 'Untitled memory')}</h3>` +
       (preview ? `<p class="card-story">${escapeHtml(preview)}</p>` : '') +
       `<div class="card-meta">` +
+        (albumNewIds.has(m.id) ? `<span class="chip chip-new">✨ New</span>` : '') +
         (m.audioBlob ? `<span class="has-audio">🎙️ Voice memo</span>` : '') +
         (m.tags || []).slice(0, 3).map((t) => `<span class="chip">${escapeHtml(t)}</span>`).join('') +
       `</div>`;
@@ -1451,6 +1504,23 @@ async function loadAlbum(pw, isRetry) {
     albumView.password = pw || '';
     revokeAll();
     memoriesCache = memories;
+
+    // Highlight memories added since this viewer last opened the album.
+    const seenKey = 'lm.albumSeen:' + albumView.readKey;
+    const lastSeen = Number(localStorage.getItem(seenKey) || 0);
+    albumNewIds = new Set();
+    if (lastSeen) {
+      for (const mm of memories) {
+        if ((mm.createdAt || 0) > lastSeen) albumNewIds.add(mm.id);
+      }
+    }
+    const maxSeen = memories.reduce((a, mm) => Math.max(a, mm.createdAt || 0, mm.updatedAt || 0), 0);
+    localStorage.setItem(seenKey, String(Math.max(lastSeen, maxSeen, Date.now())));
+    const banner = $('#albumBanner');
+    banner.textContent = albumNewIds.size
+      ? `👀 Shared album · ✨ ${albumNewIds.size} new since your last visit`
+      : '👀 You’re viewing a shared family album (read-only)';
+
     if (!memories.length) {
       feed.innerHTML = '';
       empty.hidden = false;
