@@ -775,11 +775,13 @@ function openViewer(id) {
   if ((m.photos || []).length) {
     const gallery = document.createElement('div');
     gallery.className = 'viewer-gallery';
-    m.photos.forEach((p) => {
+    m.photos.forEach((p, idx) => {
       const img = document.createElement('img');
       img.className = 'viewer-photo';
+      img.style.cursor = 'zoom-in';
       setImg(img, p.blob);
       img.alt = m.title || 'Memory photo';
+      img.addEventListener('click', () => openLightbox(m.photos, idx));
       gallery.appendChild(img);
     });
     body.appendChild(gallery);
@@ -820,6 +822,7 @@ function openViewer(id) {
   }
 
   $('#viewerEdit').onclick = () => { $('#viewer').close(); openComposer(m); };
+  $('#viewerShare').onclick = () => sharePostcard(m);
   $('#viewerDelete').onclick = async () => {
     if (!confirm('Delete this memory? This cannot be undone.')) return;
     await dbDelete(m.id);
@@ -829,6 +832,260 @@ function openViewer(id) {
   };
 
   $('#viewer').showModal();
+}
+
+/* ----------------------------- Lightbox ----------------------------- */
+
+const lightbox = { photos: [], index: 0, zoomed: false, panX: 0, panY: 0 };
+
+function openLightbox(photos, index) {
+  lightbox.photos = photos || [];
+  if (!lightbox.photos.length) return;
+  lightbox.index = index || 0;
+  renderLightbox();
+  const hint = $('#lbHint');
+  hint.style.opacity = '1';
+  setTimeout(() => { hint.style.opacity = '0'; }, 2600);
+  $('#lightbox').showModal();
+}
+
+function renderLightbox() {
+  resetZoom();
+  setImg($('#lbImg'), lightbox.photos[lightbox.index].blob);
+  $('#lbCounter').textContent = `${lightbox.index + 1} / ${lightbox.photos.length}`;
+  const multi = lightbox.photos.length > 1;
+  $('#lbPrev').hidden = !multi;
+  $('#lbNext').hidden = !multi;
+}
+
+function lbGo(delta) {
+  const n = lightbox.photos.length;
+  if (n < 2) return;
+  lightbox.index = (lightbox.index + delta + n) % n;
+  renderLightbox();
+}
+
+function resetZoom() {
+  lightbox.zoomed = false;
+  lightbox.panX = 0;
+  lightbox.panY = 0;
+  const img = $('#lbImg');
+  img.classList.remove('zoomed');
+  img.style.transform = 'none';
+}
+
+function applyLbTransform() {
+  $('#lbImg').style.transform = lightbox.zoomed
+    ? `translate(${lightbox.panX}px, ${lightbox.panY}px) scale(2.5)`
+    : 'none';
+}
+
+function toggleZoom() {
+  lightbox.zoomed = !lightbox.zoomed;
+  lightbox.panX = 0;
+  lightbox.panY = 0;
+  $('#lbImg').classList.toggle('zoomed', lightbox.zoomed);
+  applyLbTransform();
+}
+
+function wireLightbox() {
+  const dlg = $('#lightbox');
+  const img = $('#lbImg');
+
+  $('#lbClose').addEventListener('click', () => dlg.close());
+  $('#lbPrev').addEventListener('click', (e) => { e.stopPropagation(); lbGo(-1); });
+  $('#lbNext').addEventListener('click', (e) => { e.stopPropagation(); lbGo(1); });
+
+  // Tap dark area to close; clicks on the image/buttons don't reach here.
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') lbGo(-1);
+    else if (e.key === 'ArrowRight') lbGo(1);
+  });
+  dlg.addEventListener('close', resetZoom);
+
+  // Swipe to browse; tap to toggle zoom; drag to pan when zoomed.
+  let startX = 0, startY = 0, lastX = 0, lastY = 0, down = false, moved = false;
+  img.addEventListener('pointerdown', (e) => {
+    down = true; moved = false;
+    startX = lastX = e.clientX; startY = lastY = e.clientY;
+    try { img.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  img.addEventListener('pointermove', (e) => {
+    if (!down) return;
+    if (Math.abs(e.clientX - startX) > 6 || Math.abs(e.clientY - startY) > 6) moved = true;
+    if (lightbox.zoomed) {
+      lightbox.panX += e.clientX - lastX;
+      lightbox.panY += e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      applyLbTransform();
+    }
+  });
+  img.addEventListener('pointerup', (e) => {
+    if (!down) return;
+    down = false;
+    if (lightbox.zoomed) {
+      if (!moved) toggleZoom();           // a tap while zoomed → zoom back out
+      return;                             // otherwise it was a pan
+    }
+    const dx = e.clientX - startX;
+    if (moved && Math.abs(dx) > 50) lbGo(dx < 0 ? 1 : -1);
+    else if (!moved) toggleZoom();        // a tap → zoom in
+  });
+}
+
+/* ----------------------------- Share postcard ----------------------------- */
+
+function loadImageBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const im = new Image();
+    im.onload = () => { resolve(im); setTimeout(() => URL.revokeObjectURL(url), 0); };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image')); };
+    im.src = url;
+  });
+}
+
+function drawCover(ctx, img, x, y, w, h) {
+  const r = Math.max(w / img.width, h / img.height);
+  const nw = img.width * r, nh = img.height * r;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.drawImage(img, x + (w - nw) / 2, y + (h - nh) / 2, nw, nh);
+  ctx.restore();
+}
+
+function wrapCentered(ctx, text, cx, y, maxWidth, lineHeight, maxLines) {
+  maxLines = maxLines || 99;
+  const words = (text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxWidth && line) {
+      lines.push(line);
+      line = w;
+      if (lines.length >= maxLines) { line = ''; break; }
+    } else {
+      line = t;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  if (lines.length >= maxLines && (words.join(' ').length > lines.join(' ').length)) {
+    let last = lines[maxLines - 1] || '';
+    while (last && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+    lines[maxLines - 1] = last + '…';
+  }
+  for (const l of lines.slice(0, maxLines)) { ctx.fillText(l, cx, y); y += lineHeight; }
+  return y;
+}
+
+async function buildPostcard(m) {
+  try { await document.fonts.load('600 40px "Caveat"'); await document.fonts.ready; } catch (_) {}
+
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fffdf8';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#ece1d7';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(24, 24, W - 48, H - 48);
+
+  const fx = 75, fy = 70, fw = W - 150, fh = 720;
+
+  // White polaroid frame with a soft shadow.
+  ctx.save();
+  ctx.shadowColor = 'rgba(70,50,35,0.22)';
+  ctx.shadowBlur = 26;
+  ctx.shadowOffsetY = 12;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(fx - 16, fy - 16, fw + 32, fh + 32 + 36);
+  ctx.restore();
+
+  if (m.photos && m.photos[0]) {
+    try {
+      const img = await loadImageBlob(m.photos[0].blob);
+      drawCover(ctx, img, fx, fy, fw, fh);
+    } catch (_) {
+      ctx.fillStyle = '#f0e7dd'; ctx.fillRect(fx, fy, fw, fh);
+    }
+  } else {
+    ctx.fillStyle = '#f0e7dd';
+    ctx.fillRect(fx, fy, fw, fh);
+    ctx.fillStyle = '#c9b8a8';
+    ctx.font = '120px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('📷', W / 2, fy + fh / 2 + 40);
+  }
+
+  ctx.textAlign = 'center';
+  let y = fy + fh + 36 + 66;
+
+  ctx.fillStyle = '#a9542f';
+  ctx.font = '700 40px "Caveat", cursive';
+  if (fmtDate(m.date)) { ctx.fillText(fmtDate(m.date), W / 2, y); }
+  y += 58;
+
+  ctx.fillStyle = '#2c2622';
+  ctx.font = '600 52px Georgia, "Times New Roman", serif';
+  y = wrapCentered(ctx, m.title || 'A little moment', W / 2, y, W - 180, 58, 2);
+  y += 14;
+
+  const excerpt = (m.story || m.transcript || '').replace(/\s+/g, ' ').trim();
+  if (excerpt) {
+    ctx.fillStyle = '#6b615a';
+    ctx.font = '30px Georgia, "Times New Roman", serif';
+    wrapCentered(ctx, excerpt, W / 2, y, W - 200, 40, 3);
+  }
+
+  ctx.fillStyle = '#c96f4a';
+  ctx.font = '700 34px "Caveat", cursive';
+  ctx.fillText('✽ Little Moments', W / 2, H - 54);
+
+  return await new Promise((res) => canvas.toBlob((b) => res(b), 'image/jpeg', 0.92));
+}
+
+async function sharePostcard(m) {
+  toast('Making your postcard…');
+  let blob;
+  try {
+    blob = await buildPostcard(m);
+  } catch (_) {
+    toast('Sorry — could not create the postcard.');
+    return;
+  }
+  if (!blob) { toast('Sorry — could not create the postcard.'); return; }
+
+  const safe = (m.title || 'memory').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'memory';
+  const file = new File([blob], `little-moments-${safe}.jpg`, { type: 'image/jpeg' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: m.title || 'A memory', text: m.title || 'A little moment 💛' });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user dismissed the share sheet
+      downloadBlob(blob, file.name);
+    }
+  } else {
+    downloadBlob(blob, file.name);
+    toast('Postcard saved to your device.');
+  }
+}
+
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
 /* ----------------------------- Backup / restore ----------------------------- */
@@ -955,6 +1212,7 @@ function init() {
   wireComposer();
   wireSettings();
   wireDialogs();
+  wireLightbox();
 
   $('#fab').addEventListener('click', () => openComposer(null));
   $('#search').addEventListener('input', applySearch);

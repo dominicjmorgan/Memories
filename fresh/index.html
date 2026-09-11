@@ -8,7 +8,7 @@
   <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
   <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="../icons/icon.svg" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-mtxa8cmk" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtxanenq" />
 </head>
 <body>
   <header class="app-header">
@@ -170,13 +170,24 @@
     <div class="sheet-body" id="viewerBody"></div>
     <div class="sheet-foot">
       <button type="button" class="btn danger ghost" id="viewerDelete">Delete</button>
+      <button type="button" class="btn ghost" id="viewerShare">📤 Share</button>
       <button type="button" class="btn ghost" id="viewerEdit">Edit</button>
       <button type="button" class="btn primary" data-close>Close</button>
     </div>
   </dialog>
 
+  <!-- Fullscreen photo lightbox -->
+  <dialog id="lightbox" class="lightbox" aria-label="Photo viewer">
+    <div class="lb-counter" id="lbCounter"></div>
+    <button type="button" class="lb-close icon-btn" id="lbClose" aria-label="Close">✕</button>
+    <button type="button" class="lb-nav lb-prev" id="lbPrev" aria-label="Previous photo">‹</button>
+    <img class="lb-img" id="lbImg" alt="Memory photo" draggable="false" />
+    <button type="button" class="lb-nav lb-next" id="lbNext" aria-label="Next photo">›</button>
+    <div class="lb-hint" id="lbHint">tap photo to zoom · swipe to browse</div>
+  </dialog>
+
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-mtxa8cmk"></script>
+  <script src="../app.js?v=fresh-mtxanenq"></script>
 </body>
 </html>
