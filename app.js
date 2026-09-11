@@ -206,6 +206,7 @@ function buildAiPrompt(transcript, imageCount) {
     'Return ONLY a JSON object (no markdown, no commentary) with these fields:\n' +
     '- "title": a short, playful, evocative title (max ~6 words)\n' +
     '- "story": 2 to 4 short, entertaining paragraphs in the first person\n' +
+    '- "caption": one short, witty, shareable one-liner (max ~14 words) that captures the moment — the kind of caption you would text to family with the photos. No hashtags, no quotes.\n' +
     '- "tags": an array of 3 to 6 short lowercase tags\n' +
     '- "mood": a single word describing the feeling\n'
   );
@@ -318,6 +319,7 @@ function parseAIJson(text) {
   return {
     title: typeof obj.title === 'string' ? obj.title.trim() : '',
     story: typeof obj.story === 'string' ? obj.story.trim() : '',
+    caption: typeof obj.caption === 'string' ? obj.caption.trim() : '',
     tags: Array.isArray(obj.tags) ? obj.tags.map((t) => String(t).trim()).filter(Boolean) : [],
     mood: typeof obj.mood === 'string' ? obj.mood.trim() : '',
   };
@@ -435,6 +437,7 @@ function resetComposer() {
   $('#dateInput').value = todayISO();
   $('#transcriptInput').value = '';
   $('#storyInput').value = '';
+  $('#captionInput').value = '';
   $('#tagsInput').value = '';
   $('#photoGrid').innerHTML = '';
   $('#recTimer').textContent = '0:00';
@@ -508,6 +511,7 @@ function openComposer(memory) {
     $('#dateInput').value = memory.date || todayISO();
     $('#transcriptInput').value = memory.transcript || '';
     $('#storyInput').value = memory.story || '';
+    $('#captionInput').value = memory.caption || '';
     $('#tagsInput').value = (memory.tags || []).join(', ');
     renderPhotoGrid();
   } else {
@@ -579,6 +583,7 @@ function wireComposer() {
       const result = await summarizeWithAI(transcript, images);
       if (result.story) $('#storyInput').value = result.story;
       if (result.title && !$('#titleInput').value.trim()) $('#titleInput').value = result.title;
+      if (result.caption && !$('#captionInput').value.trim()) $('#captionInput').value = result.caption;
       if (result.tags.length && !$('#tagsInput').value.trim()) $('#tagsInput').value = result.tags.join(', ');
       status.className = 'ai-status';
       status.textContent = 'Story ready — edit it however you like.';
@@ -628,6 +633,7 @@ function wireComposer() {
       title: title || 'Untitled memory',
       date: $('#dateInput').value || todayISO(),
       story,
+      caption: $('#captionInput').value.trim(),
       transcript,
       tags: $('#tagsInput').value.split(',').map((t) => t.trim()).filter(Boolean),
       photos: composer.photos.map((p) => ({ id: p.id, blob: p.blob })),
@@ -1092,7 +1098,7 @@ async function buildPostcard(m) {
   y = wrapCentered(ctx, m.title || 'A little moment', W / 2, y, W - 180, 58, 2);
   y += 16;
 
-  const caption = shortCaption(m.story || m.transcript || '', 170);
+  const caption = (m.caption && m.caption.trim()) || shortCaption(m.story || m.transcript || '', 170);
   if (caption) {
     ctx.fillStyle = '#6b615a';
     ctx.font = 'italic 31px Georgia, "Times New Roman", serif';
@@ -1159,7 +1165,7 @@ async function exportData() {
         photos.push({ id: p.id, dataURL: await blobToDataURL(p.blob) });
       }
       serialized.push({
-        id: m.id, title: m.title, date: m.date, story: m.story,
+        id: m.id, title: m.title, date: m.date, story: m.story, caption: m.caption || '',
         transcript: m.transcript, tags: m.tags, createdAt: m.createdAt, updatedAt: m.updatedAt,
         photos,
         audio: m.audioBlob ? await blobToDataURL(m.audioBlob) : null,
@@ -1195,6 +1201,7 @@ async function importData(file) {
         title: m.title || 'Untitled memory',
         date: m.date || todayISO(),
         story: m.story || '',
+        caption: m.caption || '',
         transcript: m.transcript || '',
         tags: Array.isArray(m.tags) ? m.tags : [],
         photos: (m.photos || []).map((p) => ({ id: p.id || uid(), blob: dataURLToBlob(p.dataURL) })),
