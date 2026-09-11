@@ -83,3 +83,47 @@ Wrangler prints the Worker URL. Paste it into the app's **AI proxy URL** field.
   arbitrary prompts with your key.
 - Set `ALLOWED_ORIGINS` to your app's origin to prevent other sites from using your Worker.
 - Cloudflare's free tier is generous; personal use won't approach its limits.
+
+---
+
+## Shared family album (optional)
+
+Lets invited family view the memories you publish, via a private link + a
+family password. It reuses this same Worker plus Cloudflare's free key‑value
+storage (KV). One‑time setup:
+
+### 1. Create a KV namespace and bind it
+1. Cloudflare dashboard → **Storage & Databases → KV → Create a namespace**
+   (name it e.g. `little-moments-album`).
+2. Open your Worker → **Settings → Bindings → Add → KV namespace**.
+   - **Variable name:** `ALBUM` (exactly).
+   - **Namespace:** the one you just created. Save/deploy.
+
+### 2. Add the album secrets
+On the Worker → **Settings → Variables and Secrets**, add three **Secrets**:
+- `ALBUM_OWNER_KEY` — a long random string; only *your* device uses it to publish.
+- `ALBUM_READ_KEY` — a long random string; this goes in the family link.
+- `ALBUM_PASSWORD` — the password you give family (e.g. a memorable phrase).
+
+(Use a password manager or just make up long random values for the two keys.)
+
+### 3. Re‑deploy the Worker
+Make sure the Worker is running the latest [`worker.js`](./worker.js) (it now
+handles both the AI proxy and the album). Deploy.
+
+### 4. Turn it on in the app
+In Little Moments → ⚙️ **Settings → Shared family album**:
+- Enter the **same** Owner key, Read key, and Family password you set on the Worker.
+- Tick **Publish my memories to the shared album**.
+- Tap **Publish all now** to upload your existing memories.
+- Tap **Copy family link** and send it to family. Tell them the **password separately**
+  (not in the same message), so a forwarded link alone can't open the album.
+
+Family open the link, enter the password once, and see your album — read‑only.
+New memories you save publish automatically. Deleting a memory removes it from
+the album too.
+
+**Privacy:** album memories (photos, audio, text) are stored in your Cloudflare
+KV, readable only with the read key **and** the password. Your on‑device journal
+is unchanged; publishing is a copy. Free‑tier KV is generous but has limits — fine
+for a family; very large libraries may eventually need Cloudflare R2 (ask me).

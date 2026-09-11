@@ -488,3 +488,18 @@ textarea { resize: vertical; }
   pointer-events: none;
   transition: opacity 0.4s ease;
 }
+
+/* Shared album */
+.album-banner {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  color: var(--ink);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.album-loading { text-align: center; color: var(--ink-soft); padding: 40px 16px; }
+.checkbox-row { flex-direction: row !important; align-items: center; gap: 10px; cursor: pointer; }
+.checkbox-row input { width: auto; }
+body.album-mode .fab { display: none; }

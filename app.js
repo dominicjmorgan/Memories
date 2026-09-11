@@ -178,7 +178,31 @@ const settings = {
   },
   get proxyUrl() { return localStorage.getItem('lm.proxyUrl') || ''; },
   set proxyUrl(v) { localStorage.setItem('lm.proxyUrl', (v || '').trim().replace(/\/+$/, '')); },
+  get albumOwnerKey() { return localStorage.getItem('lm.albumOwnerKey') || ''; },
+  set albumOwnerKey(v) { localStorage.setItem('lm.albumOwnerKey', (v || '').trim()); },
+  get albumReadKey() { return localStorage.getItem('lm.albumReadKey') || ''; },
+  set albumReadKey(v) { localStorage.setItem('lm.albumReadKey', (v || '').trim()); },
+  get albumPassword() { return localStorage.getItem('lm.albumPassword') || ''; },
+  set albumPassword(v) { localStorage.setItem('lm.albumPassword', (v || '').trim()); },
+  get albumSync() { return localStorage.getItem('lm.albumSync') === '1'; },
+  set albumSync(v) { localStorage.setItem('lm.albumSync', v ? '1' : '0'); },
 };
+
+// Endpoint for album operations (same Worker as the AI proxy, /album path).
+function albumEndpoint() {
+  const base = settings.proxyUrl.trim();
+  return base ? base.replace(/\/+$/, '') + '/album' : '';
+}
+
+// True when the app was opened via a family share link (#album=...&k=...).
+const albumView = (function () {
+  const h = (location.hash || '').replace(/^#/, '');
+  const p = new URLSearchParams(h);
+  const base = p.get('album');
+  const key = p.get('k');
+  if (base && key) return { base: decodeURIComponent(base).replace(/\/+$/, '') + '/album', readKey: key, password: '' };
+  return null;
+})();
 
 /* ----------------------------- AI summary ----------------------------- */
 
@@ -647,6 +671,7 @@ function wireComposer() {
     $('#composer').close();
     toast(composer.editingId ? 'Memory updated.' : 'Memory saved.');
     await refresh();
+    syncMemoryToAlbum(memory); // publish to the shared album if enabled (non-blocking)
   });
 }
 
@@ -846,6 +871,10 @@ function openViewer(id) {
     body.appendChild(tags);
   }
 
+  // In the read-only family album view, hide owner-only actions.
+  $('#viewerEdit').hidden = !!albumView;
+  $('#viewerDelete').hidden = !!albumView;
+
   $('#viewerEdit').onclick = () => { $('#viewer').close(); openComposer(m); };
   $('#viewerShare').onclick = () => sharePostcard(m);
   $('#viewerDelete').onclick = async () => {
@@ -854,6 +883,7 @@ function openViewer(id) {
     $('#viewer').close();
     toast('Memory deleted.');
     await refresh();
+    deleteMemoryFromAlbum(m.id); // remove from shared album if enabled
   };
 
   $('#viewer').showModal();
@@ -1342,6 +1372,129 @@ async function sharePostcard(m) {
   }
 }
 
+/* ----------------------------- Shared album ----------------------------- */
+
+async function memoryToAlbumJSON(m) {
+  const photos = [];
+  for (const p of (m.photos || [])) {
+    const small = await processImage(p.blob, 1200, 0.82);
+    photos.push(await blobToDataURL(small));
+  }
+  return {
+    id: m.id, title: m.title, date: m.date, story: m.story, caption: m.caption || '',
+    transcript: m.transcript || '', tags: m.tags || [], mood: m.mood || '',
+    createdAt: m.createdAt || Date.now(), updatedAt: m.updatedAt || Date.now(),
+    photos, audio: m.audioBlob ? await blobToDataURL(m.audioBlob) : null,
+  };
+}
+
+function albumJSONToMemory(m) {
+  return {
+    id: m.id, title: m.title, date: m.date, story: m.story || '', caption: m.caption || '',
+    transcript: m.transcript || '', tags: Array.isArray(m.tags) ? m.tags : [], mood: m.mood || '',
+    createdAt: m.createdAt || 0, updatedAt: m.updatedAt || 0,
+    photos: (m.photos || []).map((d) => ({ id: uid(), blob: dataURLToBlob(d) })),
+    audioBlob: m.audio ? dataURLToBlob(m.audio) : null,
+  };
+}
+
+async function syncMemoryToAlbum(m) {
+  const ep = albumEndpoint();
+  if (!settings.albumSync || !ep || !settings.albumOwnerKey) return;
+  try {
+    const memory = await memoryToAlbumJSON(m);
+    await fetch(ep, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'put', ownerKey: settings.albumOwnerKey, memory }),
+    });
+  } catch (_) { /* non-blocking */ }
+}
+
+async function deleteMemoryFromAlbum(id) {
+  const ep = albumEndpoint();
+  if (!settings.albumSync || !ep || !settings.albumOwnerKey) return;
+  try {
+    await fetch(ep, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', ownerKey: settings.albumOwnerKey, id }),
+    });
+  } catch (_) {}
+}
+
+async function fetchAlbumMemories(password) {
+  const res = await fetch(albumView.base, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'list', readKey: albumView.readKey, password: password || '' }),
+  });
+  if (res.status === 401) {
+    let msg = ''; try { msg = (await res.json()).error?.message || ''; } catch (_) {}
+    const e = new Error(msg);
+    e.code = msg === 'needs-password' ? 'needs-password' : 'unauthorized';
+    throw e;
+  }
+  if (!res.ok) {
+    let msg = ''; try { msg = (await res.json()).error?.message || ''; } catch (_) {}
+    throw new Error(msg || `Failed (${res.status})`);
+  }
+  const data = await res.json();
+  return (data.items || []).map(albumJSONToMemory);
+}
+
+async function loadAlbum(pw, isRetry) {
+  const feed = $('#feed');
+  const empty = $('#emptyState');
+  empty.hidden = true;
+  feed.innerHTML = '<p class="album-loading">Loading the album…</p>';
+  try {
+    const memories = await fetchAlbumMemories(pw);
+    localStorage.setItem('lm.albumPw:' + albumView.readKey, pw || '');
+    albumView.password = pw || '';
+    revokeAll();
+    memoriesCache = memories;
+    if (!memories.length) {
+      feed.innerHTML = '';
+      empty.hidden = false;
+      $('#emptyState h2').textContent = 'Nothing shared yet';
+      $('#emptyState p').textContent = 'This album doesn’t have any memories in it yet.';
+      const b = $('#emptyState .btn'); if (b) b.remove();
+      return;
+    }
+    applySearch();
+  } catch (e) {
+    if (e.code === 'needs-password') {
+      showAlbumGate(isRetry ? 'That password didn’t work — please try again.' : '');
+    } else if (e.code === 'unauthorized') {
+      feed.innerHTML = '<p class="album-loading">This album link isn’t valid. Please ask for a fresh link.</p>';
+    } else {
+      feed.innerHTML = '<p class="album-loading">Couldn’t load the album: ' + escapeHtml(e.message || 'unknown error') + '</p>';
+    }
+  }
+}
+
+function showAlbumGate(msg) {
+  const m = $('#albumGateMsg');
+  m.textContent = msg || '';
+  m.hidden = !msg;
+  $('#albumPwInput').value = '';
+  if (!$('#albumGate').open) $('#albumGate').showModal();
+  setTimeout(() => $('#albumPwInput').focus(), 60);
+}
+
+function initAlbumView() {
+  document.body.classList.add('album-mode');
+  $('#fab').hidden = true;
+  $('#settingsBtn').hidden = true;
+  $('#albumBanner').hidden = false;
+  $('#albumGateForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pw = $('#albumPwInput').value;
+    $('#albumGate').close();
+    loadAlbum(pw, true);
+  });
+  const stored = localStorage.getItem('lm.albumPw:' + albumView.readKey) || '';
+  loadAlbum(stored, false);
+}
+
 function downloadBlob(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1440,7 +1593,12 @@ function wireSettings() {
     $('#apiKeyInput').value = settings.apiKey;
     $('#modelSelect').value = settings.model;
     $('#workspaceIdInput').value = settings.workspaceId;
+    $('#albumOwnerKeyInput').value = settings.albumOwnerKey;
+    $('#albumReadKeyInput').value = settings.albumReadKey;
+    $('#albumPasswordInput').value = settings.albumPassword;
+    $('#albumSyncToggle').checked = settings.albumSync;
     $('#dataStatus').hidden = true;
+    $('#albumStatus').hidden = true;
     dlg.showModal();
   });
   // Use 'input' (not 'change') so pasted values persist immediately, even if
@@ -1449,11 +1607,54 @@ function wireSettings() {
   $('#apiKeyInput').addEventListener('input', (e) => { settings.apiKey = e.target.value.trim(); });
   $('#modelSelect').addEventListener('change', (e) => { settings.model = e.target.value; });
   $('#workspaceIdInput').addEventListener('input', (e) => { settings.workspaceId = e.target.value; });
+  $('#albumOwnerKeyInput').addEventListener('input', (e) => { settings.albumOwnerKey = e.target.value; });
+  $('#albumReadKeyInput').addEventListener('input', (e) => { settings.albumReadKey = e.target.value; });
+  $('#albumPasswordInput').addEventListener('input', (e) => { settings.albumPassword = e.target.value; });
+  $('#albumSyncToggle').addEventListener('change', (e) => { settings.albumSync = e.target.checked; });
+  $('#albumLinkBtn').addEventListener('click', copyAlbumLink);
+  $('#albumSyncAllBtn').addEventListener('click', publishAllToAlbum);
   $('#exportBtn').addEventListener('click', exportData);
   $('#importInput').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
     e.target.value = '';
   });
+}
+
+function albumStatus(msg, kind) {
+  const s = $('#albumStatus');
+  s.hidden = false;
+  s.className = 'ai-status' + (kind ? ' ' + kind : '');
+  s.textContent = msg;
+}
+
+async function copyAlbumLink() {
+  const base = settings.proxyUrl.trim();
+  const key = settings.albumReadKey.trim();
+  if (!base || !key) { albumStatus('Set the AI proxy URL and a read key first.', 'error'); return; }
+  const link = `${location.origin}${location.pathname}#album=${encodeURIComponent(base)}&k=${encodeURIComponent(key)}`;
+  try { await navigator.clipboard.writeText(link); albumStatus('Family link copied! Share it, then tell them the password separately.'); }
+  catch (_) { albumStatus('Copy this link: ' + link); }
+}
+
+async function publishAllToAlbum() {
+  if (!settings.albumSync || !albumEndpoint() || !settings.albumOwnerKey) {
+    albumStatus('Turn on publishing and fill in the proxy URL + owner key first.', 'error');
+    return;
+  }
+  const all = await dbGetAll();
+  albumStatus(`Publishing ${all.length} memor${all.length === 1 ? 'y' : 'ies'}…`, 'working');
+  let ok = 0;
+  for (const m of all) {
+    try {
+      const memory = await memoryToAlbumJSON(m);
+      const res = await fetch(albumEndpoint(), {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'put', ownerKey: settings.albumOwnerKey, memory }),
+      });
+      if (res.ok) ok++;
+    } catch (_) {}
+  }
+  albumStatus(ok === all.length ? `Published all ${ok}. Family will see them now.` : `Published ${ok} of ${all.length}. Check your keys and try again.`, ok === all.length ? '' : 'error');
 }
 
 function wireDialogs() {
@@ -1474,19 +1675,23 @@ function wireDialogs() {
 }
 
 function init() {
-  wireComposer();
-  wireSettings();
   wireDialogs();
   wireLightbox();
-
-  $('#fab').addEventListener('click', () => openComposer(null));
   $('#search').addEventListener('input', applySearch);
-  document.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-action="new"]');
-    if (t) openComposer(null);
-  });
 
-  refresh();
+  if (albumView) {
+    // Read-only family album view — no composer/settings/local data.
+    initAlbumView();
+  } else {
+    wireComposer();
+    wireSettings();
+    $('#fab').addEventListener('click', () => openComposer(null));
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-action="new"]');
+      if (t) openComposer(null);
+    });
+    refresh();
+  }
 
   // Skip the service worker on the /fresh/ test page so it stays fully
   // cache-free (there is no sw.js there to register anyway).

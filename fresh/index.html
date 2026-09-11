@@ -8,7 +8,7 @@
   <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
   <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="../icons/icon.svg" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-mtxcjh5l" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtxd3dk9" />
 </head>
 <body>
   <header class="app-header">
@@ -23,6 +23,8 @@
       </div>
     </div>
   </header>
+
+  <div id="albumBanner" class="album-banner" hidden>👀 You're viewing a shared family album (read-only)</div>
 
   <main class="wrap main">
     <div id="emptyState" class="empty" hidden>
@@ -149,6 +151,32 @@
       </div>
 
       <div class="field">
+        <span>Shared family album</span>
+        <p class="hint">Publish your memories to a private album so invited family can view them (read-only) via a secret link + password. Uses your Cloudflare Worker — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">album setup</a>. The keys/password below must match the ones you set on the Worker.</p>
+        <label class="field checkbox-row">
+          <input id="albumSyncToggle" type="checkbox" />
+          <span class="sub">Publish my memories to the shared album</span>
+        </label>
+        <label class="field">
+          <span class="sub">Owner key <span class="hint" style="font-weight:400">(secret — lets this device publish)</span></span>
+          <input id="albumOwnerKeyInput" type="password" placeholder="owner secret" autocomplete="off" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="sub">Read key <span class="hint" style="font-weight:400">(goes in the family link)</span></span>
+          <input id="albumReadKeyInput" type="text" placeholder="read secret" autocomplete="off" spellcheck="false" />
+        </label>
+        <label class="field">
+          <span class="sub">Family password</span>
+          <input id="albumPasswordInput" type="text" placeholder="password family will type" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="photo-add-row">
+          <button type="button" id="albumLinkBtn" class="btn ghost">🔗 Copy family link</button>
+          <button type="button" id="albumSyncAllBtn" class="btn ghost">⬆️ Publish all now</button>
+        </div>
+        <div id="albumStatus" class="ai-status" hidden></div>
+      </div>
+
+      <div class="field">
         <span>Your data</span>
         <p class="hint">Everything lives on this device. Back it up to a file, or restore it on another device.</p>
         <div class="photo-add-row">
@@ -191,8 +219,28 @@
     <div class="lb-hint" id="lbHint">tap photo to zoom · swipe to browse</div>
   </dialog>
 
+  <!-- Family album password gate -->
+  <dialog id="albumGate" class="sheet album-gate">
+    <form id="albumGateForm" method="dialog">
+      <div class="sheet-head">
+        <h2>✽ A shared album</h2>
+      </div>
+      <div class="sheet-body">
+        <p class="hint">This family album is private. Enter the password you were given to view it.</p>
+        <label class="field">
+          <span class="sub">Password</span>
+          <input id="albumPwInput" type="password" autocomplete="off" />
+        </label>
+        <div id="albumGateMsg" class="ai-status error" hidden></div>
+      </div>
+      <div class="sheet-foot">
+        <button type="submit" class="btn primary">Unlock</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-mtxcjh5l"></script>
+  <script src="../app.js?v=fresh-mtxd3dk9"></script>
 </body>
 </html>
