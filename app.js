@@ -1220,7 +1220,7 @@ function chooseDoodles(m) {
 
 function drawDoodleRow(ctx, cx, cy, names, size, seed) {
   const colors = ['#c96f4a', '#7a8b6f', '#a9542f', '#d99a4e'];
-  const gap = size * 0.5;
+  const gap = size * 0.62;
   const total = names.length * size + (names.length - 1) * gap;
   let x = cx - total / 2 + size / 2;
   names.forEach((name, i) => {
@@ -1296,14 +1296,18 @@ async function buildPostcard(m) {
     y = wrapCentered(ctx, caption, W / 2, y, W - 200, 42, 3);
   }
 
-  // Fill the space beneath the caption with a trio of hand-drawn doodles
-  // picked from the memory's mood / tags / words.
-  const bandTop = y + 18;
-  const bandBottom = H - 100; // keep clear of the footer
-  const band = bandBottom - bandTop;
-  if (band > 80) {
-    const size = Math.max(70, Math.min(132, band * 0.72));
-    drawDoodleRow(ctx, W / 2, bandTop + band / 2, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
+  // A trio of hand-drawn doodles, anchored low on the card with clear
+  // breathing room below the caption (shrinking only if the caption is long).
+  const footerY = H - 54;
+  const gapAboveDoodles = 64;      // space between caption and doodles
+  const gapBelowDoodles = 46;      // space between doodles and footer
+  const center = H - 182;          // preferred vertical center, sat low
+  let size = 118;
+  const maxByTop = 2 * (center - (y + gapAboveDoodles));       // fit under caption
+  const maxByBottom = 2 * ((footerY - gapBelowDoodles) - center); // fit above footer
+  size = Math.min(size, maxByTop, maxByBottom);
+  if (size >= 60) {
+    drawDoodleRow(ctx, W / 2, center, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
   }
 
   ctx.fillStyle = '#c96f4a';
