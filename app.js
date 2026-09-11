@@ -1249,7 +1249,7 @@ async function buildPostcard(m) {
   ctx.lineWidth = 2;
   ctx.strokeRect(24, 24, W - 48, H - 48);
 
-  const fx = 75, fy = 70, fw = W - 150, fh = 720;
+  const fx = 75, fy = 66, fw = W - 150, fh = 648;
 
   // White polaroid frame with a soft shadow.
   ctx.save();
@@ -1296,18 +1296,15 @@ async function buildPostcard(m) {
     y = wrapCentered(ctx, caption, W / 2, y, W - 200, 42, 3);
   }
 
-  // A trio of hand-drawn doodles, anchored low on the card with clear
-  // breathing room below the caption (shrinking only if the caption is long).
-  const footerY = H - 54;
-  const gapAboveDoodles = 64;      // space between caption and doodles
-  const gapBelowDoodles = 46;      // space between doodles and footer
-  const center = H - 182;          // preferred vertical center, sat low
-  let size = 118;
-  const maxByTop = 2 * (center - (y + gapAboveDoodles));       // fit under caption
-  const maxByBottom = 2 * ((footerY - gapBelowDoodles) - center); // fit above footer
-  size = Math.min(size, maxByTop, maxByBottom);
-  if (size >= 60) {
-    drawDoodleRow(ctx, W / 2, center, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
+  // A trio of hand-drawn doodles in the space between the caption and the
+  // footer, with a comfortable gap from the text (and centered in whatever
+  // room remains). Only skipped if there is genuinely no room.
+  const bandTop = y + 50;            // clear gap below the caption
+  const bandBottom = H - 108;        // clear gap above the footer
+  const band = bandBottom - bandTop;
+  if (band >= 60) {
+    const size = Math.min(118, band);
+    drawDoodleRow(ctx, W / 2, bandTop + band / 2, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
   }
 
   ctx.fillStyle = '#c96f4a';
