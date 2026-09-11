@@ -958,6 +958,61 @@ function drawCover(ctx, img, x, y, w, h) {
   ctx.restore();
 }
 
+// Lay out 1–4 images inside (x,y,w,h) as a tidy collage with white gutters.
+function drawCollage(ctx, imgs, x, y, w, h, gap) {
+  gap = gap || 10;
+  const n = Math.min(imgs.length, 4);
+  const halfW = (w - gap) / 2;
+  const halfH = (h - gap) / 2;
+  let rects;
+  if (n === 1) {
+    rects = [[x, y, w, h]];
+  } else if (n === 2) {
+    rects = [[x, y, halfW, h], [x + halfW + gap, y, halfW, h]];
+  } else if (n === 3) {
+    // one tall on the left, two stacked on the right
+    rects = [
+      [x, y, halfW, h],
+      [x + halfW + gap, y, halfW, halfH],
+      [x + halfW + gap, y + halfH + gap, halfW, halfH],
+    ];
+  } else {
+    // 2 x 2
+    rects = [
+      [x, y, halfW, halfH],
+      [x + halfW + gap, y, halfW, halfH],
+      [x, y + halfH + gap, halfW, halfH],
+      [x + halfW + gap, y + halfH + gap, halfW, halfH],
+    ];
+  }
+  for (let i = 0; i < n; i++) {
+    drawCover(ctx, imgs[i], rects[i][0], rects[i][1], rects[i][2], rects[i][3]);
+  }
+}
+
+// A short, clean caption for the postcard: whole sentences up to maxChars,
+// never cut mid-word. Falls back to a word-boundary trim with an ellipsis.
+function shortCaption(text, maxChars) {
+  const clean = (text || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return '';
+  if (clean.length <= maxChars) return clean;
+  const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
+  let out = '';
+  for (const s of sentences) {
+    const next = (out + s).trim();
+    if (next.length > maxChars) break;
+    out = next + ' ';
+  }
+  out = out.trim();
+  if (!out) {
+    // First sentence already too long — trim to a word boundary.
+    let t = clean.slice(0, maxChars);
+    t = t.slice(0, t.lastIndexOf(' ') > 0 ? t.lastIndexOf(' ') : t.length);
+    out = t + '…';
+  }
+  return out;
+}
+
 function wrapCentered(ctx, text, cx, y, maxWidth, lineHeight, maxLines) {
   maxLines = maxLines || 99;
   const words = (text || '').split(/\s+/).filter(Boolean);
@@ -1008,13 +1063,13 @@ async function buildPostcard(m) {
   ctx.fillRect(fx - 16, fy - 16, fw + 32, fh + 32 + 36);
   ctx.restore();
 
-  if (m.photos && m.photos[0]) {
-    try {
-      const img = await loadImageBlob(m.photos[0].blob);
-      drawCover(ctx, img, fx, fy, fw, fh);
-    } catch (_) {
-      ctx.fillStyle = '#f0e7dd'; ctx.fillRect(fx, fy, fw, fh);
-    }
+  // Load up to 4 photos and lay them out as a mini collage.
+  const loaded = [];
+  for (const p of (m.photos || []).slice(0, 4)) {
+    try { loaded.push(await loadImageBlob(p.blob)); } catch (_) {}
+  }
+  if (loaded.length) {
+    drawCollage(ctx, loaded, fx, fy, fw, fh, 10);
   } else {
     ctx.fillStyle = '#f0e7dd';
     ctx.fillRect(fx, fy, fw, fh);
@@ -1035,13 +1090,13 @@ async function buildPostcard(m) {
   ctx.fillStyle = '#2c2622';
   ctx.font = '600 52px Georgia, "Times New Roman", serif';
   y = wrapCentered(ctx, m.title || 'A little moment', W / 2, y, W - 180, 58, 2);
-  y += 14;
+  y += 16;
 
-  const excerpt = (m.story || m.transcript || '').replace(/\s+/g, ' ').trim();
-  if (excerpt) {
+  const caption = shortCaption(m.story || m.transcript || '', 170);
+  if (caption) {
     ctx.fillStyle = '#6b615a';
-    ctx.font = '30px Georgia, "Times New Roman", serif';
-    wrapCentered(ctx, excerpt, W / 2, y, W - 200, 40, 3);
+    ctx.font = 'italic 31px Georgia, "Times New Roman", serif';
+    wrapCentered(ctx, caption, W / 2, y, W - 200, 42, 3);
   }
 
   ctx.fillStyle = '#c96f4a';
