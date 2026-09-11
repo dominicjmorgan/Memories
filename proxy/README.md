@@ -4,12 +4,34 @@ This tiny server holds your Anthropic API key safely (off your phone) and adds
 the workspace header for you, so AI summaries "just work" — no key or Workspace
 ID stored in the browser. It's free on Cloudflare's plan.
 
-You only need to set this up once. Two ways: the **dashboard** (no tools, easiest)
-or the **command line**.
+You only need to set this up once. Pick whichever host is easiest for you.
 
 ---
 
-## Option 1 — Cloudflare dashboard (easiest, ~5 minutes)
+## Option 0 — Val Town (simplest, no CLI, ~3 minutes) ⭐ recommended
+
+Val Town lets you paste a small server into a web editor and instantly get a URL —
+no "assets", no build, no missing buttons.
+
+1. Sign up free at <https://val.town> (you can sign in with Google).
+2. Click **New** → **HTTP val**.
+3. Delete the sample code and paste in the entire contents of [`valtown.js`](./valtown.js).
+4. Add your key: click your username → **Settings** → **Environment Variables** →
+   add `ANTHROPIC_API_KEY` = your Anthropic key.
+   - (Only for org-scoped keys) also add `WORKSPACE_ID` = your `wrkspc_…`.
+   - (Optional) add `MODEL` = `claude-opus-5` / `claude-sonnet-5` / `claude-haiku-4-5`.
+5. Copy the val's **HTTP endpoint URL** (shown at the top of the val).
+6. In the app → ⚙️ **Settings** → paste it into **AI proxy URL**, leave the API key blank.
+
+---
+
+## Option 1 — Cloudflare dashboard (~5 minutes)
+
+> **Heads-up:** the in-dashboard "Edit code" button only appears for a plain Worker.
+> If you created a Worker that includes static assets (or via a framework template),
+> that button is hidden. To get the editable kind: **Workers & Pages → Create →
+> Workers → "Hello World"** (a plain Worker, not a framework/assets template). That
+> opens the inline code editor. You can delete the earlier assets-based Worker.
 
 1. Create a free account at <https://dash.cloudflare.com/sign-up>.
 2. In the left sidebar, go to **Compute (Workers)** → **Workers & Pages** → **Create** → **Create Worker**.
