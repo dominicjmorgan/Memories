@@ -178,8 +178,8 @@ body { overflow-x: hidden; } /* gentle card tilts must never scroll the page sid
 }
 
 .card-body { padding: 12px 8px 18px; }
-.card-date { font-family: var(--hand); color: var(--brand-dark); font-size: 1.2rem; line-height: 1; display: inline-block; transform: rotate(-1.5deg); }
-.card-title { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 6px 0 8px; line-height: 1.25; color: var(--paper-ink); }
+.card-title { font-family: var(--display); font-weight: 700; font-size: 1.3rem; margin: 0 0 4px; line-height: 1.25; color: var(--paper-ink); }
+.card-date { font-family: var(--hand); color: var(--brand-dark); font-size: 1.2rem; line-height: 1; display: inline-block; transform: rotate(-1.5deg); margin-bottom: 8px; }
 .card-story { color: var(--paper-soft); margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card-meta { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
 .chip {

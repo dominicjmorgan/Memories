@@ -886,8 +886,8 @@ function renderFeed(list) {
     body.className = 'card-body';
     const preview = m.story || m.transcript || '';
     body.innerHTML =
-      `<div class="card-date">${escapeHtml(fmtDate(m.date))}</div>` +
       `<h3 class="card-title">${escapeHtml(m.title || 'Untitled memory')}</h3>` +
+      `<div class="card-date">${escapeHtml(fmtDate(m.date))}</div>` +
       (preview ? `<p class="card-story">${escapeHtml(preview)}</p>` : '') +
       `<div class="card-meta">` +
         (albumNewIds.has(m.id) ? `<span class="chip chip-new">✨ New</span>` : '') +

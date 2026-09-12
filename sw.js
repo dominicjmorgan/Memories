@@ -1,7 +1,7 @@
 /* Little Moments service worker — caches the app shell for offline use.
    Memory data lives in IndexedDB, so the app works fully offline once loaded. */
 
-const CACHE = 'little-moments-v26';
+const CACHE = 'little-moments-v27';
 const SHELL = [
   './',
   './index.html',
