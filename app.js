@@ -1701,7 +1701,9 @@ async function copyAlbumLink() {
   const base = settings.proxyUrl.trim();
   const key = settings.albumReadKey.trim();
   if (!base || !key) { albumStatus('Set the AI proxy URL and a read key first.', 'error'); return; }
-  const link = `${location.origin}${location.pathname}#album=${encodeURIComponent(base)}&k=${encodeURIComponent(key)}`;
+  // Always point family at the canonical app, never the /fresh/ helper page.
+  const path = location.pathname.replace(/(^|\/)fresh\/?$/, '/');
+  const link = `${location.origin}${path}#album=${encodeURIComponent(base)}&k=${encodeURIComponent(key)}`;
   try { await navigator.clipboard.writeText(link); albumStatus('Family link copied! Share it, then tell them the password separately.'); }
   catch (_) { albumStatus('Copy this link: ' + link); }
 }
