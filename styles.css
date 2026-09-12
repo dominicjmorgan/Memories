@@ -548,3 +548,9 @@ body.album-mode .fab { display: none; }
 .sw-dots { display: flex; gap: 4px; }
 .sw-dots i { width: 17px; height: 17px; border-radius: 50%; display: block; }
 .sw-name { font-size: 0.72rem; font-weight: 700; color: var(--ink-soft); text-align: center; line-height: 1.15; }
+
+/* Doodle header icons */
+.brand-mark { width: 1.5em; height: 1.5em; display: inline-block; vertical-align: -0.28em; }
+.icon-btn svg { width: 23px; height: 23px; display: block; }
+#settingsBtn { color: var(--ink-soft); }
+#settingsBtn:hover { color: var(--brand); }

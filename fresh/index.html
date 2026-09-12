@@ -13,18 +13,30 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Little Moments" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-mtyc47or" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtyc7vkk" />
 </head>
 <body>
   <header class="app-header">
     <div class="wrap header-inner">
       <h1 class="brand">
-        <span class="brand-mark" aria-hidden="true">✽</span>
+        <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.6" />
+          <path d="M12 3.4v2.1M12 18.5v2.1M3.4 12h2.1M18.5 12h2.1M5.9 5.9l1.5 1.5M16.6 16.6l1.5 1.5M18.1 5.9l-1.5 1.5M7.4 16.6l-1.5 1.5" />
+          <path d="M10.4 12.7a1.8 1.8 0 0 0 3.2 0" stroke-width="1.7" />
+          <circle cx="10.5" cy="10.9" r="0.4" fill="currentColor" stroke="none" />
+          <circle cx="13.5" cy="10.9" r="0.4" fill="currentColor" stroke="none" />
+        </svg>
         Little Moments
       </h1>
       <div class="header-actions">
         <input id="search" class="search" type="search" placeholder="Search memories…" aria-label="Search memories" />
-        <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+        <button id="settingsBtn" class="icon-btn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="6" />
+            <circle cx="12" cy="12" r="2.3" />
+            <path d="M12 3.1v2.2M12 18.7v2.2M3.1 12h2.2M18.7 12h2.2M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M18.5 5.5l-1.6 1.6M7.1 16.9l-1.6 1.6" />
+          </svg>
+        </button>
       </div>
     </div>
   </header>
@@ -252,6 +264,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-mtyc47or"></script>
+  <script src="../app.js?v=fresh-mtyc7vkk"></script>
 </body>
 </html>
