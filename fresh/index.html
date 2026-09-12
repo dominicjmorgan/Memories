@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#c96f4a" />
+  <meta name="theme-color" content="#f4635e" />
   <title>Little Moments</title>
   <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
   <link rel="icon" href="../icons/icon.svg" type="image/svg+xml" />
@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Little Moments" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-mtxmu78s" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-mtybjvi8" />
 </head>
 <body>
   <header class="app-header">
@@ -131,6 +131,12 @@
     </div>
     <div class="sheet-body">
       <div class="field">
+        <span>Look &amp; feel</span>
+        <p class="hint">Pick a color theme — it applies right away and is saved on this device.</p>
+        <div id="themeSwatches" class="theme-swatches"></div>
+      </div>
+
+      <div class="field">
         <span>AI summaries</span>
         <p class="hint">Two ways to enable AI stories. <strong>Recommended:</strong> set up the free proxy (keeps your key off this device) — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">proxy setup</a> — and paste its URL below. <strong>Or:</strong> paste your Anthropic API key to call Anthropic directly.</p>
         <label class="field">
@@ -246,6 +252,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-mtxmu78s"></script>
+  <script src="../app.js?v=fresh-mtybjvi8"></script>
 </body>
 </html>

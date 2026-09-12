@@ -162,6 +162,63 @@ function processImage(file, maxDim = 1600, quality = 0.85) {
   });
 }
 
+/* ----------------------------- Themes ----------------------------- */
+
+const THEMES = {
+  'coral-mint':  { name: 'Coral & Mint',     bg: '#fff5ee', surface: '#ffffff', ink: '#3b3550', inkSoft: '#8a8397', line: '#f3e7ee', brand: '#f4635e', brandDark: '#dd4b48', accent: '#23bfa6' },
+  'bubblegum':   { name: 'Bubblegum',        bg: '#fff4f8', surface: '#ffffff', ink: '#43364a', inkSoft: '#8f8298', line: '#f6e6ee', brand: '#ef5a92', brandDark: '#d63f79', accent: '#4bc0e0' },
+  'blueberry':   { name: 'Blueberry & Sun',  bg: '#f4f7ff', surface: '#ffffff', ink: '#333a52', inkSoft: '#7d84a0', line: '#e5e9f6', brand: '#6a7be0', brandDark: '#5163cf', accent: '#f2a834' },
+  'grape-lime':  { name: 'Grape & Lime',     bg: '#f8f5ff', surface: '#ffffff', ink: '#3d3550', inkSoft: '#8a83a0', line: '#ece5f7', brand: '#8a63d2', brandDark: '#7149c0', accent: '#6fbf3f' },
+  'tangerine':   { name: 'Tangerine & Teal', bg: '#fff6ec', surface: '#ffffff', ink: '#3a352c', inkSoft: '#897f6f', line: '#f3e7d6', brand: '#f2731f', brandDark: '#dc5f0f', accent: '#17b3ac' },
+  'sky-berry':   { name: 'Sky & Berry',      bg: '#f2f9ff', surface: '#ffffff', ink: '#333a4a', inkSoft: '#7d8598', line: '#e2eef7', brand: '#2f9fe0', brandDark: '#1f86c4', accent: '#ef6aa0' },
+  'warm':        { name: 'Warm (original)',  bg: '#fbf6f1', surface: '#ffffff', ink: '#2c2622', inkSoft: '#6b615a', line: '#ece1d7', brand: '#c96f4a', brandDark: '#a9542f', accent: '#7a8b6f' },
+};
+const DEFAULT_THEME = 'coral-mint';
+
+function applyTheme(key) {
+  const t = THEMES[key] || THEMES[DEFAULT_THEME];
+  const r = document.documentElement.style;
+  r.setProperty('--bg', t.bg);
+  r.setProperty('--surface', t.surface);
+  r.setProperty('--ink', t.ink);
+  r.setProperty('--ink-soft', t.inkSoft);
+  r.setProperty('--line', t.line);
+  r.setProperty('--brand', t.brand);
+  r.setProperty('--brand-dark', t.brandDark);
+  r.setProperty('--accent', t.accent);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t.brand);
+  try { localStorage.setItem('lm.theme', key); } catch (_) {}
+}
+
+function initTheme() {
+  let key = DEFAULT_THEME;
+  try { key = localStorage.getItem('lm.theme') || DEFAULT_THEME; } catch (_) {}
+  applyTheme(key);
+}
+
+function wireThemePicker() {
+  const wrap = $('#themeSwatches');
+  if (!wrap) return;
+  const current = (function () { try { return localStorage.getItem('lm.theme') || DEFAULT_THEME; } catch (_) { return DEFAULT_THEME; } })();
+  wrap.innerHTML = '';
+  Object.entries(THEMES).forEach(([key, t]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch' + (key === current ? ' on' : '');
+    b.innerHTML =
+      `<span class="sw-dots"><i style="background:${t.brand}"></i><i style="background:${t.accent}"></i>` +
+      `<i style="background:${t.bg};box-shadow:inset 0 0 0 1px rgba(0,0,0,.1)"></i></span>` +
+      `<span class="sw-name">${t.name}</span>`;
+    b.addEventListener('click', () => {
+      applyTheme(key);
+      wrap.querySelectorAll('.swatch').forEach((s) => s.classList.remove('on'));
+      b.classList.add('on');
+    });
+    wrap.appendChild(b);
+  });
+}
+
 /* ----------------------------- Settings ----------------------------- */
 
 const settings = {
@@ -1301,8 +1358,8 @@ function chooseDoodles(m) {
   return picked.slice(0, 3);
 }
 
-function drawDoodleRow(ctx, cx, cy, names, size, seed) {
-  const colors = ['#c96f4a', '#7a8b6f', '#a9542f', '#d99a4e'];
+function drawDoodleRow(ctx, cx, cy, names, size, seed, colors) {
+  colors = colors && colors.length ? colors : ['#c96f4a', '#7a8b6f', '#a9542f', '#d99a4e'];
   const gap = size * 0.62;
   const total = names.length * size + (names.length - 1) * gap;
   let x = cx - total / 2 + size / 2;
@@ -1320,6 +1377,14 @@ function drawDoodleRow(ctx, cx, cy, names, size, seed) {
 
 async function buildPostcard(m) {
   try { await document.fonts.load('600 40px "Caveat"'); await document.fonts.ready; } catch (_) {}
+
+  // Match the postcard accents to the app's current theme.
+  const cs = getComputedStyle(document.documentElement);
+  const cvar = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback);
+  const brand = cvar('--brand', '#c96f4a');
+  const brandDark = cvar('--brand-dark', '#a9542f');
+  const accent = cvar('--accent', '#7a8b6f');
+  const doodleColors = [brand, accent, brandDark, '#e8a13a'];
 
   const W = 1080, H = 1350;
   const canvas = document.createElement('canvas');
@@ -1362,7 +1427,7 @@ async function buildPostcard(m) {
   ctx.textAlign = 'center';
   let y = fy + fh + 36 + 66;
 
-  ctx.fillStyle = '#a9542f';
+  ctx.fillStyle = brandDark;
   ctx.font = '700 40px "Caveat", cursive';
   if (fmtDate(m.date)) { ctx.fillText(fmtDate(m.date), W / 2, y); }
   y += 58;
@@ -1387,10 +1452,10 @@ async function buildPostcard(m) {
   const band = bandBottom - bandTop;
   if (band >= 60) {
     const size = Math.min(118, band);
-    drawDoodleRow(ctx, W / 2, bandTop + band / 2, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0);
+    drawDoodleRow(ctx, W / 2, bandTop + band / 2, chooseDoodles(m), size, m.id ? m.id.charCodeAt(0) : 0, doodleColors);
   }
 
-  ctx.fillStyle = '#c96f4a';
+  ctx.fillStyle = brand;
   ctx.font = '700 34px "Caveat", cursive';
   ctx.textAlign = 'center';
   ctx.fillText('✽ Little Moments', W / 2, H - 54);
@@ -1683,6 +1748,7 @@ function wireSettings() {
   $('#albumSyncToggle').addEventListener('change', (e) => { settings.albumSync = e.target.checked; });
   $('#albumLinkBtn').addEventListener('click', copyAlbumLink);
   $('#albumSyncAllBtn').addEventListener('click', publishAllToAlbum);
+  wireThemePicker();
   $('#exportBtn').addEventListener('click', exportData);
   $('#importInput').addEventListener('change', (e) => {
     if (e.target.files[0]) importData(e.target.files[0]);
@@ -1747,6 +1813,7 @@ function wireDialogs() {
 }
 
 function init() {
+  initTheme();
   wireDialogs();
   wireLightbox();
   $('#search').addEventListener('input', applySearch);

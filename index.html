@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#c96f4a" />
+  <meta name="theme-color" content="#f4635e" />
   <title>Little Moments</title>
   <meta name="description" content="A private journal of photos and voice-memo memories with the people you love." />
   <link rel="manifest" href="manifest.webmanifest" />
@@ -131,6 +131,12 @@
       <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
     </div>
     <div class="sheet-body">
+      <div class="field">
+        <span>Look &amp; feel</span>
+        <p class="hint">Pick a color theme — it applies right away and is saved on this device.</p>
+        <div id="themeSwatches" class="theme-swatches"></div>
+      </div>
+
       <div class="field">
         <span>AI summaries</span>
         <p class="hint">Two ways to enable AI stories. <strong>Recommended:</strong> set up the free proxy (keeps your key off this device) — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">proxy setup</a> — and paste its URL below. <strong>Or:</strong> paste your Anthropic API key to call Anthropic directly.</p>
