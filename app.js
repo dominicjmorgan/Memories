@@ -960,6 +960,17 @@ function openViewer(id) {
     body.appendChild(audio);
   }
 
+  const narrateText = m.story || m.caption || m.transcript || '';
+  if (narrateText && 'speechSynthesis' in window) {
+    const nb = document.createElement('button');
+    nb.type = 'button';
+    nb.className = 'btn ghost small narrate-btn';
+    nb.dataset.idle = '🔊 Read aloud';
+    nb.textContent = nb.dataset.idle;
+    nb.addEventListener('click', () => narrate(narrateText, nb));
+    body.appendChild(nb);
+  }
+
   if (m.story) {
     const story = document.createElement('div');
     story.className = 'viewer-story';
@@ -999,11 +1010,43 @@ function openViewer(id) {
   $('#viewer').showModal();
 }
 
+/* ----------------------------- Narration (read aloud) ----------------------------- */
+
+function stopSpeaking() {
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
+  document.querySelectorAll('.narrate-btn.on').forEach((b) => {
+    b.classList.remove('on');
+    b.textContent = b.dataset.idle || '🔊 Read aloud';
+  });
+}
+
+function narrate(text, btn) {
+  if (!('speechSynthesis' in window)) { toast('Read-aloud isn’t supported in this browser.'); return; }
+  const synth = window.speechSynthesis;
+  const wasOn = btn.classList.contains('on');
+  stopSpeaking();
+  if (wasOn || !text.trim()) return; // toggle off
+
+  const u = new SpeechSynthesisUtterance(text.trim());
+  u.rate = 0.96;
+  u.pitch = 1.02;
+  const voices = synth.getVoices ? synth.getVoices() : [];
+  const pref = voices.find((v) => /^en/i.test(v.lang) && /(Samantha|Karen|Moira|Serena|Aria|Jenny|Google US English|Female)/i.test(v.name))
+    || voices.find((v) => /^en/i.test(v.lang));
+  if (pref) u.voice = pref;
+  u.onend = () => { btn.classList.remove('on'); btn.textContent = btn.dataset.idle; };
+  u.onerror = u.onend;
+  btn.classList.add('on');
+  btn.textContent = '⏹ Stop';
+  synth.speak(u);
+}
+
 /* ----------------------------- Lightbox ----------------------------- */
 
 const lightbox = { photos: [], index: 0, zoomed: false, panX: 0, panY: 0 };
 
 function openLightbox(photos, index) {
+  stopSpeaking();
   lightbox.photos = photos || [];
   if (!lightbox.photos.length) return;
   lightbox.index = index || 0;
@@ -1810,6 +1853,8 @@ function wireDialogs() {
       stopRecording();
     }
   });
+  // Stop any read-aloud narration when the memory viewer is closed.
+  $('#viewer').addEventListener('close', stopSpeaking);
 }
 
 function init() {

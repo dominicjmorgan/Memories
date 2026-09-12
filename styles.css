@@ -246,6 +246,9 @@ body { overflow-x: hidden; } /* gentle card tilts must never scroll the page sid
 .btn.ai { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-color: transparent; }
 .btn.ai:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
 .btn.danger { color: var(--danger); }
+.narrate-btn { margin-top: 8px; }
+.narrate-btn.on { background: color-mix(in srgb, var(--brand) 14%, transparent); border-color: var(--brand); color: var(--brand-dark); }
+.narrate-btn.on:hover { background: color-mix(in srgb, var(--brand) 22%, transparent); }
 .btn.danger.ghost:hover { border-color: var(--danger); color: var(--danger); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .icon-btn {
