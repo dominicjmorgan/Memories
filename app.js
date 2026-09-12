@@ -167,7 +167,7 @@ function processImage(file, maxDim = 1600, quality = 0.85) {
 const THEMES = {
   'coral-mint':  { name: 'Coral & Mint',     bg: '#fff5ee', surface: '#ffffff', ink: '#3b3550', inkSoft: '#8a8397', line: '#f3e7ee', brand: '#f4635e', brandDark: '#dd4b48', accent: '#23bfa6' },
   'bubblegum':   { name: 'Bubblegum',        bg: '#fff4f8', surface: '#ffffff', ink: '#43364a', inkSoft: '#8f8298', line: '#f6e6ee', brand: '#ef5a92', brandDark: '#d63f79', accent: '#4bc0e0' },
-  'blueberry':   { name: 'Blueberry & Sun',  bg: '#f4f7ff', surface: '#ffffff', ink: '#333a52', inkSoft: '#7d84a0', line: '#e5e9f6', brand: '#6a7be0', brandDark: '#5163cf', accent: '#f2a834' },
+  'blueberry':   { name: 'Blueberry & Sun',  bg: '#eef3ff', surface: '#ffffff', ink: '#2c3355', inkSoft: '#757ea3', line: '#dfe6fb', brand: '#4f6ef2', brandDark: '#3a57e0', accent: '#ffab19' },
   'grape-lime':  { name: 'Grape & Lime',     bg: '#f8f5ff', surface: '#ffffff', ink: '#3d3550', inkSoft: '#8a83a0', line: '#ece5f7', brand: '#8a63d2', brandDark: '#7149c0', accent: '#6fbf3f' },
   'tangerine':   { name: 'Tangerine & Teal', bg: '#fff6ec', surface: '#ffffff', ink: '#3a352c', inkSoft: '#897f6f', line: '#f3e7d6', brand: '#f2731f', brandDark: '#dc5f0f', accent: '#17b3ac' },
   'sky-berry':   { name: 'Sky & Berry',      bg: '#f2f9ff', surface: '#ffffff', ink: '#333a4a', inkSoft: '#7d8598', line: '#e2eef7', brand: '#2f9fe0', brandDark: '#1f86c4', accent: '#ef6aa0' },
