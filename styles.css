@@ -249,6 +249,8 @@ body { overflow-x: hidden; } /* gentle card tilts must never scroll the page sid
 .narrate-btn { margin-top: 8px; }
 .narrate-btn.on { background: color-mix(in srgb, var(--brand) 14%, transparent); border-color: var(--brand); color: var(--brand-dark); }
 .narrate-btn.on:hover { background: color-mix(in srgb, var(--brand) 22%, transparent); }
+.narrate-btn.busy { opacity: 0.75; cursor: progress; animation: narratePulse 1.1s ease-in-out infinite; }
+@keyframes narratePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
 .btn.danger.ghost:hover { border-color: var(--danger); color: var(--danger); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .icon-btn {

@@ -243,12 +243,21 @@ const settings = {
   set albumPassword(v) { localStorage.setItem('lm.albumPassword', (v || '').trim()); },
   get albumSync() { return localStorage.getItem('lm.albumSync') === '1'; },
   set albumSync(v) { localStorage.setItem('lm.albumSync', v ? '1' : '0'); },
+  // Optional ElevenLabs voice id for premium read-aloud (blank = proxy default).
+  get ttsVoiceId() { return localStorage.getItem('lm.ttsVoiceId') || ''; },
+  set ttsVoiceId(v) { localStorage.setItem('lm.ttsVoiceId', (v || '').trim()); },
 };
 
 // Endpoint for album operations (same Worker as the AI proxy, /album path).
 function albumEndpoint() {
   const base = settings.proxyUrl.trim();
   return base ? base.replace(/\/+$/, '') + '/album' : '';
+}
+
+// Endpoint for premium narration (same Worker as the AI proxy, /tts path).
+function ttsEndpoint() {
+  const base = settings.proxyUrl.trim();
+  return base ? base.replace(/\/+$/, '') + '/tts' : '';
 }
 
 // True when the app was opened via a family share link (#album=...&k=...).
@@ -775,6 +784,14 @@ function wireComposer() {
       updatedAt: now,
     };
 
+    // Keep any cached premium narration only if the words it was read from are
+    // unchanged; otherwise drop it so it regenerates from the new text on play.
+    const narrSrc = memory.story || memory.caption || memory.transcript || '';
+    if (existing && existing.narrationBlob && existing.narrationText === narrSrc) {
+      memory.narrationBlob = existing.narrationBlob;
+      memory.narrationText = existing.narrationText;
+    }
+
     await dbPut(memory);
     $('#composer').close();
     toast(composer.editingId ? 'Memory updated.' : 'Memory saved.');
@@ -961,13 +978,14 @@ function openViewer(id) {
   }
 
   const narrateText = m.story || m.caption || m.transcript || '';
-  if (narrateText && 'speechSynthesis' in window) {
+  const canPremium = (!!ttsEndpoint() && !albumView) || !!m.narrationBlob;
+  if (narrateText && (canPremium || 'speechSynthesis' in window)) {
     const nb = document.createElement('button');
     nb.type = 'button';
     nb.className = 'btn ghost small narrate-btn';
     nb.dataset.idle = '🔊 Read aloud';
     nb.textContent = nb.dataset.idle;
-    nb.addEventListener('click', () => narrate(narrateText, nb));
+    nb.addEventListener('click', () => narrate(m, narrateText, nb));
     body.appendChild(nb);
   }
 
@@ -1010,23 +1028,70 @@ function openViewer(id) {
   $('#viewer').showModal();
 }
 
-/* ----------------------------- Narration (read aloud) ----------------------------- */
+/* ----------------------------- Narration (read aloud) -----------------------------
+   Two voices, best first:
+   1. Premium — a warm, real ElevenLabs voice generated once via the proxy /tts
+      route, then cached on the memory (and synced to the family album) so it
+      replays instantly and costs nothing to hear again.
+   2. Fallback — the browser's built-in speechSynthesis, if premium isn't set up
+      or the voice service can't be reached. */
+
+let narrationAudio = null; // the premium <audio> element currently playing, if any
 
 function stopSpeaking() {
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
-  document.querySelectorAll('.narrate-btn.on').forEach((b) => {
-    b.classList.remove('on');
+  if (narrationAudio) {
+    try { narrationAudio.pause(); } catch (_) {}
+    if (narrationAudio._url) URL.revokeObjectURL(narrationAudio._url);
+    narrationAudio = null;
+  }
+  document.querySelectorAll('.narrate-btn').forEach((b) => {
+    b.classList.remove('on', 'busy');
+    b.disabled = false;
     b.textContent = b.dataset.idle || '🔊 Read aloud';
   });
 }
 
-function narrate(text, btn) {
+// Ask the proxy to synthesize a real voice; returns an MP3 Blob or throws.
+async function fetchNarration(text) {
+  const ep = ttsEndpoint();
+  if (!ep) { const e = new Error('no-proxy'); e.code = 'no-proxy'; throw e; }
+  const res = await fetch(ep, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text, voiceId: settings.ttsVoiceId || undefined }),
+  });
+  if (!res.ok) {
+    let detail = ''; try { detail = (await res.json()).error?.message || ''; } catch (_) {}
+    const e = new Error(detail || `Voice request failed (${res.status})`);
+    e.code = 'http';
+    throw e;
+  }
+  const blob = await res.blob();
+  if (!blob || blob.size < 200) throw new Error('The voice service returned no audio.');
+  return blob;
+}
+
+function playNarrationBlob(blob, btn) {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio._url = url;
+  narrationAudio = audio;
+  const reset = () => {
+    if (narrationAudio === audio) { URL.revokeObjectURL(url); narrationAudio = null; }
+    btn.classList.remove('on');
+    btn.textContent = btn.dataset.idle || '🔊 Read aloud';
+  };
+  audio.onended = reset;
+  audio.onerror = reset;
+  btn.classList.add('on');
+  btn.textContent = '⏸ Stop';
+  audio.play().catch(reset);
+}
+
+function narrateBrowser(text, btn) {
   if (!('speechSynthesis' in window)) { toast('Read-aloud isn’t supported in this browser.'); return; }
   const synth = window.speechSynthesis;
-  const wasOn = btn.classList.contains('on');
-  stopSpeaking();
-  if (wasOn || !text.trim()) return; // toggle off
-
   const u = new SpeechSynthesisUtterance(text.trim());
   u.rate = 0.96;
   u.pitch = 1.02;
@@ -1039,6 +1104,43 @@ function narrate(text, btn) {
   btn.classList.add('on');
   btn.textContent = '⏹ Stop';
   synth.speak(u);
+}
+
+async function narrate(m, text, btn) {
+  const wasOn = btn.classList.contains('on');
+  stopSpeaking();
+  if (wasOn || !text.trim()) return; // second tap = stop
+
+  // Already have a real voice cached for this exact text → play instantly.
+  if (m && m.narrationBlob && m.narrationText === text) { playNarrationBlob(m.narrationBlob, btn); return; }
+
+  // Generate a premium voice (owner only — the read-only album never generates).
+  if (ttsEndpoint() && !albumView) {
+    btn.classList.add('busy');
+    btn.disabled = true;
+    btn.textContent = '🎙️ Generating voice…';
+    try {
+      const blob = await fetchNarration(text);
+      btn.disabled = false;
+      btn.classList.remove('busy');
+      if (m) {
+        m.narrationBlob = blob;
+        m.narrationText = text;
+        try { await dbPut(m); } catch (_) {}
+        syncMemoryToAlbum(m); // so family hears the same real voice
+      }
+      playNarrationBlob(blob, btn);
+      return;
+    } catch (e) {
+      btn.disabled = false;
+      btn.classList.remove('busy');
+      btn.textContent = btn.dataset.idle;
+      if (e.code !== 'no-proxy') toast('Premium voice unavailable — using the built-in voice.');
+      // fall through to the browser voice
+    }
+  }
+
+  narrateBrowser(text, btn);
 }
 
 /* ----------------------------- Lightbox ----------------------------- */
@@ -1546,6 +1648,8 @@ async function memoryToAlbumJSON(m) {
     transcript: m.transcript || '', tags: m.tags || [], mood: m.mood || '',
     createdAt: m.createdAt || Date.now(), updatedAt: m.updatedAt || Date.now(),
     photos, audio: m.audioBlob ? await blobToDataURL(m.audioBlob) : null,
+    narration: m.narrationBlob ? await blobToDataURL(m.narrationBlob) : null,
+    narrationText: m.narrationText || '',
   };
 }
 
@@ -1556,6 +1660,8 @@ function albumJSONToMemory(m) {
     createdAt: m.createdAt || 0, updatedAt: m.updatedAt || 0,
     photos: (m.photos || []).map((d) => ({ id: uid(), blob: dataURLToBlob(d) })),
     audioBlob: m.audio ? dataURLToBlob(m.audio) : null,
+    narrationBlob: m.narration ? dataURLToBlob(m.narration) : null,
+    narrationText: m.narrationText || '',
   };
 }
 
@@ -1771,6 +1877,7 @@ function wireSettings() {
     $('#apiKeyInput').value = settings.apiKey;
     $('#modelSelect').value = settings.model;
     $('#workspaceIdInput').value = settings.workspaceId;
+    $('#ttsVoiceIdInput').value = settings.ttsVoiceId;
     $('#albumOwnerKeyInput').value = settings.albumOwnerKey;
     $('#albumReadKeyInput').value = settings.albumReadKey;
     $('#albumPasswordInput').value = settings.albumPassword;
@@ -1785,6 +1892,7 @@ function wireSettings() {
   $('#apiKeyInput').addEventListener('input', (e) => { settings.apiKey = e.target.value.trim(); });
   $('#modelSelect').addEventListener('change', (e) => { settings.model = e.target.value; });
   $('#workspaceIdInput').addEventListener('input', (e) => { settings.workspaceId = e.target.value; });
+  $('#ttsVoiceIdInput').addEventListener('input', (e) => { settings.ttsVoiceId = e.target.value; });
   $('#albumOwnerKeyInput').addEventListener('input', (e) => { settings.albumOwnerKey = e.target.value; });
   $('#albumReadKeyInput').addEventListener('input', (e) => { settings.albumReadKey = e.target.value; });
   $('#albumPasswordInput').addEventListener('input', (e) => { settings.albumPassword = e.target.value; });

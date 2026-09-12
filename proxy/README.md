@@ -127,3 +127,46 @@ the album too.
 KV, readable only with the read key **and** the password. Your on‑device journal
 is unchanged; publishing is a copy. Free‑tier KV is generous but has limits — fine
 for a family; very large libraries may eventually need Cloudflare R2 (ask me).
+
+---
+
+## Read-aloud narration (optional)
+
+Adds a warm, real-sounding voice to the **🔊 Read aloud** button, using
+[ElevenLabs](https://elevenlabs.io) text-to-speech. Each story is voiced once,
+then cached on the memory (and included when it syncs to the family album), so
+you only pay to generate it a single time and it replays instantly afterward.
+Without this, the button still works using your device's built-in voice.
+
+### 1. Get an ElevenLabs API key
+1. Sign up free at <https://elevenlabs.io> (the free tier includes a monthly
+   character allowance — plenty to try it out).
+2. Click your profile → **API Keys** → **Create API Key**, and copy it.
+
+### 2. Add it to your Worker
+On the Worker → **Settings → Variables and Secrets**, add a **Secret**:
+- `ELEVENLABS_API_KEY` — the key you just copied.
+
+Optional **Variables** (not secrets):
+- `ELEVENLABS_VOICE_ID` — the default voice for everyone. Blank uses `Rachel`
+  (a warm, natural narrator). Browse the
+  [voice library](https://elevenlabs.io/app/voice-library) and copy any voice's ID.
+- `ELEVENLABS_MODEL` — defaults to `eleven_multilingual_v2` (best quality).
+  Use `eleven_turbo_v2_5` for roughly half the cost and lower latency.
+
+Re-deploy the Worker with the latest [`worker.js`](./worker.js) (it now handles
+the AI proxy, the album, **and** `/tts`).
+
+### 3. (Optional) pick a per-device voice
+In the app → ⚙️ **Settings → Read-aloud voice**, paste a **Voice ID** to override
+the default just for your device. Leave it blank to use the Worker's default.
+
+With `ELEVENLABS_API_KEY` set, tapping **🔊 Read aloud** narrates the story in the
+chosen voice; family hear the same voice on memories that were narrated before
+publishing. Val Town setups work the same way — add `ELEVENLABS_API_KEY` (and the
+optional variables) as environment variables there too.
+
+**Cost control:** stories are trimmed to 2,500 characters per narration, and the
+Worker only ever synthesizes the text the app sends — it can't be used to
+generate arbitrary audio with your key. Set `ALLOWED_ORIGINS` (above) so only
+your app can reach `/tts`.

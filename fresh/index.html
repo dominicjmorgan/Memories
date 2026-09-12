@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Little Moments" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-15838nrt" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-16450tts" />
 </head>
 <body>
   <header class="app-header">
@@ -174,6 +174,16 @@
       </div>
 
       <div class="field">
+        <span>Read-aloud voice</span>
+        <p class="hint">Tap <strong>🔊 Read aloud</strong> on any memory to hear the story in a warm, real voice. Add an <code>ELEVENLABS_API_KEY</code> to your Worker to enable it — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">narration setup</a>. Each story is voiced once, then saved so it replays instantly (and family hear the same voice in the album). Without it, the app falls back to your device's built-in voice.</p>
+        <label class="field">
+          <span class="sub">Voice ID <span class="hint" style="font-weight:400">(optional — blank uses a warm default)</span></span>
+          <input id="ttsVoiceIdInput" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" autocomplete="off" spellcheck="false" />
+          <span class="hint" style="font-weight:400">Pick any voice from the <a href="https://elevenlabs.io/app/voice-library" target="_blank" rel="noopener">ElevenLabs voice library</a> and paste its ID here.</span>
+        </label>
+      </div>
+
+      <div class="field">
         <span>Shared family album</span>
         <p class="hint">Publish your memories to a private album so invited family can view them (read-only) via a secret link + password. Uses your Cloudflare Worker — see <a href="https://github.com/dominicjmorgan/Memories/blob/main/proxy/README.md" target="_blank" rel="noopener">album setup</a>. The keys/password below must match the ones you set on the Worker.</p>
         <label class="field checkbox-row">
@@ -264,6 +274,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-15838nrt"></script>
+  <script src="../app.js?v=fresh-16450tts"></script>
 </body>
 </html>
