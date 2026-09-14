@@ -110,12 +110,12 @@ function escapeHtml(s) {
 }
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, ms) {
   const el = $('#toast');
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, 3200);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms || 3200);
 }
 
 function blobToDataURL(blob) {
@@ -1135,7 +1135,7 @@ async function narrate(m, text, btn) {
       btn.disabled = false;
       btn.classList.remove('busy');
       btn.textContent = btn.dataset.idle;
-      if (e.code !== 'no-proxy') toast('Premium voice unavailable — using the built-in voice.');
+      if (e.code !== 'no-proxy') toast('Premium voice unavailable: ' + (e.message || 'unknown error'), 7000);
       // fall through to the browser voice
     }
   }
