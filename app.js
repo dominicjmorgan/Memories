@@ -7,6 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
+const BUILD = 'v33'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
@@ -137,29 +138,38 @@ function dataURLToBlob(dataURL) {
 }
 
 /* Downscale large photos so the local database stays lean. */
+// Downscale an image file to a JPEG blob. Resolves null if it can't be
+// decoded/re-encoded. Never hangs: a decode that neither loads nor errors
+// (some iOS cases) is given up on after a timeout so the caller keeps moving.
 function processImage(file, maxDim = 1600, quality = 0.85) {
   return new Promise((resolve) => {
-    const img = new Image();
+    let settled = false;
     const url = URL.createObjectURL(file);
-    img.onload = () => {
-      let { width, height } = img;
-      const scale = Math.min(1, maxDim / Math.max(width, height));
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(
-        (blob) => resolve(blob || file),
-        'image/jpeg',
-        quality
-      );
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      try { URL.revokeObjectURL(url); } catch (_) {}
+      resolve(result);
     };
-    // Couldn't decode the file as an image at all → signal failure with null so
-    // callers can skip it (and don't rely on the file's MIME type being set).
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        if (!width || !height) { finish(null); return; }
+        const scale = Math.min(1, maxDim / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => finish(blob || null), 'image/jpeg', quality);
+      } catch (_) {
+        finish(null);
+      }
+    };
+    img.onerror = () => finish(null);
+    setTimeout(() => finish(null), 15000); // safety net against a hung decode
     img.src = url;
   });
 }
@@ -618,21 +628,21 @@ function renderPhotoGrid() {
 }
 
 async function addPhotoFiles(fileList) {
-  // Don't filter on file.type — iOS Safari often reports an empty MIME type for
-  // photos, which would silently drop them. Instead try to decode each file and
-  // keep the ones that are real images.
+  // The picker already restricts to images (accept="image/*"), and iOS often
+  // reports an empty MIME type — so never drop a chosen file. Downscale it when
+  // we can; if decoding fails or stalls, keep the original so no photo is lost.
   const files = Array.from(fileList || []);
   if (!files.length) return;
-  let added = 0;
-  for (const file of files) {
-    const blob = await processImage(file);
-    if (blob) { composer.photos.push({ id: uid(), blob }); added++; }
-  }
-  renderPhotoGrid();
-  if (added === 0) {
-    toast('Couldn’t read those photos — try picking them from your Photo Library.', 6000);
-  } else if (added < files.length) {
-    toast(`Added ${added} of ${files.length} — the rest couldn’t be read.`, 5000);
+  try {
+    for (const file of files) {
+      const small = await processImage(file);
+      composer.photos.push({ id: uid(), blob: small || file });
+    }
+    renderPhotoGrid();
+  } catch (err) {
+    // Surface it instead of failing silently, and still add what we can.
+    renderPhotoGrid();
+    toast('Couldn’t add those photos: ' + (err && err.message ? err.message : 'unknown error'), 7000);
   }
 }
 
@@ -1993,6 +2003,8 @@ function wireDialogs() {
 
 function init() {
   initTheme();
+  const stamp = $('#buildStamp');
+  if (stamp) stamp.textContent = 'Little Moments · build ' + BUILD;
   wireDialogs();
   wireLightbox();
   $('#search').addEventListener('input', applySearch);
