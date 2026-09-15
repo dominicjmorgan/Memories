@@ -268,7 +268,7 @@
   <!-- File inputs live OUTSIDE the dialogs on purpose: iOS Safari can leave the
        system photo picker unable to dismiss when the <input type=file> is inside
        a modal <dialog>. They're triggered programmatically from the buttons. -->
-  <input id="photoInput" type="file" accept="image/*" class="offscreen-file" />
+  <input id="photoInput" type="file" accept="image/*" multiple class="offscreen-file" />
   <input id="cameraInput" type="file" accept="image/*" capture="environment" class="offscreen-file" />
 
   <div id="toast" class="toast" hidden></div>
