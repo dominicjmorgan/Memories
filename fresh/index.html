@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Little Moments" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="stylesheet" href="../styles.css?v=fresh-96560b33" />
+  <link rel="stylesheet" href="../styles.css?v=fresh-96821b34" />
 </head>
 <body>
   <header class="app-header">
@@ -67,11 +67,11 @@
           <div class="photo-add-row">
             <label class="btn ghost file-btn">
               📷 Add photos
-              <input id="photoInput" type="file" accept="image/*" multiple hidden />
+              <input id="photoInput" type="file" accept="image/*" multiple />
             </label>
             <label class="btn ghost file-btn">
               🤳 Take photo
-              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
+              <input id="cameraInput" type="file" accept="image/*" capture="environment" />
             </label>
           </div>
         </label>
@@ -212,7 +212,7 @@
           <button type="button" id="exportBtn" class="btn ghost">⬇️ Back up to file</button>
           <label class="btn ghost file-btn">
             ⬆️ Restore from file
-            <input id="importInput" type="file" accept="application/json,.json" hidden />
+            <input id="importInput" type="file" accept="application/json,.json" />
           </label>
         </div>
         <div id="dataStatus" class="ai-status" hidden></div>
@@ -272,6 +272,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="../app.js?v=fresh-96560b33"></script>
+  <script src="../app.js?v=fresh-96821b34"></script>
 </body>
 </html>

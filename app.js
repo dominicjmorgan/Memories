@@ -7,7 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
-const BUILD = 'v33'; // shown in Settings so we can confirm the live version
+const BUILD = 'v34'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
@@ -632,7 +632,8 @@ async function addPhotoFiles(fileList) {
   // reports an empty MIME type — so never drop a chosen file. Downscale it when
   // we can; if decoding fails or stalls, keep the original so no photo is lost.
   const files = Array.from(fileList || []);
-  if (!files.length) return;
+  if (!files.length) { toast('The picker didn’t return any photos.', 5000); return; }
+  toast('Adding ' + files.length + ' photo' + (files.length === 1 ? '' : 's') + '…');
   try {
     for (const file of files) {
       const small = await processImage(file);
