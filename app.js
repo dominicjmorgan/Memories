@@ -157,7 +157,9 @@ function processImage(file, maxDim = 1600, quality = 0.85) {
         quality
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    // Couldn't decode the file as an image at all → signal failure with null so
+    // callers can skip it (and don't rely on the file's MIME type being set).
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
     img.src = url;
   });
 }
@@ -385,7 +387,7 @@ async function prepareImagesForAI(photos, max = 4) {
   const out = [];
   for (const p of (photos || []).slice(0, max)) {
     try {
-      const small = await processImage(p.blob, 1024, 0.8);
+      const small = (await processImage(p.blob, 1024, 0.8)) || p.blob;
       const dataUrl = await blobToDataURL(small);
       const comma = dataUrl.indexOf(',');
       out.push({
@@ -616,12 +618,22 @@ function renderPhotoGrid() {
 }
 
 async function addPhotoFiles(fileList) {
-  const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+  // Don't filter on file.type — iOS Safari often reports an empty MIME type for
+  // photos, which would silently drop them. Instead try to decode each file and
+  // keep the ones that are real images.
+  const files = Array.from(fileList || []);
+  if (!files.length) return;
+  let added = 0;
   for (const file of files) {
     const blob = await processImage(file);
-    composer.photos.push({ id: uid(), blob });
+    if (blob) { composer.photos.push({ id: uid(), blob }); added++; }
   }
   renderPhotoGrid();
+  if (added === 0) {
+    toast('Couldn’t read those photos — try picking them from your Photo Library.', 6000);
+  } else if (added < files.length) {
+    toast(`Added ${added} of ${files.length} — the rest couldn’t be read.`, 5000);
+  }
 }
 
 function setAudio(blob) {
@@ -1652,7 +1664,7 @@ async function sharePostcard(m) {
 async function memoryToAlbumJSON(m) {
   const photos = [];
   for (const p of (m.photos || [])) {
-    const small = await processImage(p.blob, 1200, 0.82);
+    const small = (await processImage(p.blob, 1200, 0.82)) || p.blob;
     photos.push(await blobToDataURL(small));
   }
   return {
