@@ -7,7 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
-const BUILD = 'v35'; // shown in Settings so we can confirm the live version
+const BUILD = 'v36'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
