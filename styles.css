@@ -386,7 +386,8 @@ textarea { resize: vertical; }
 /* Keep file inputs in the layout but invisible. iOS Safari can fail to fire
    the change event for a display:none file input opened via its label, so we
    avoid `hidden`/`display:none` here and clip the input instead. */
-.file-btn input[type="file"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; opacity: 0; }
+.file-btn input[type="file"],
+.offscreen-file { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; margin: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; opacity: 0; }
 
 .recorder { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--bg); }
 .rec-controls { display: flex; align-items: center; gap: 12px; }

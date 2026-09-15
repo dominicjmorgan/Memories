@@ -7,7 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
-const BUILD = 'v34'; // shown in Settings so we can confirm the live version
+const BUILD = 'v35'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
@@ -685,6 +685,11 @@ function openComposer(memory) {
 }
 
 function wireComposer() {
+  // The file inputs sit outside the composer dialog (iOS picker-in-modal bug);
+  // open them from the buttons, synchronously in the tap so the user gesture is
+  // preserved.
+  $('#addPhotosBtn').addEventListener('click', () => $('#photoInput').click());
+  $('#takePhotoBtn').addEventListener('click', () => $('#cameraInput').click());
   $('#photoInput').addEventListener('change', (e) => { addPhotoFiles(e.target.files); e.target.value = ''; });
   $('#cameraInput').addEventListener('change', (e) => { addPhotoFiles(e.target.files); e.target.value = ''; });
 

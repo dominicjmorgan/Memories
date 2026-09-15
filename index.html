@@ -66,14 +66,8 @@
           <span>Photos</span>
           <div id="photoGrid" class="photo-grid"></div>
           <div class="photo-add-row">
-            <label class="btn ghost file-btn">
-              📷 Add photos
-              <input id="photoInput" type="file" accept="image/*" multiple />
-            </label>
-            <label class="btn ghost file-btn">
-              🤳 Take photo
-              <input id="cameraInput" type="file" accept="image/*" capture="environment" />
-            </label>
+            <button type="button" class="btn ghost" id="addPhotosBtn">📷 Add photos</button>
+            <button type="button" class="btn ghost" id="takePhotoBtn">🤳 Take photo</button>
           </div>
         </label>
 
@@ -270,6 +264,12 @@
       </div>
     </form>
   </dialog>
+
+  <!-- File inputs live OUTSIDE the dialogs on purpose: iOS Safari can leave the
+       system photo picker unable to dismiss when the <input type=file> is inside
+       a modal <dialog>. They're triggered programmatically from the buttons. -->
+  <input id="photoInput" type="file" accept="image/*" multiple class="offscreen-file" />
+  <input id="cameraInput" type="file" accept="image/*" capture="environment" class="offscreen-file" />
 
   <div id="toast" class="toast" hidden></div>
 
