@@ -18,7 +18,7 @@
  */
 
 const MAX_TOKENS_CAP = 2000;
-const TTS_MAX_CHARS = 2500;
+const TTS_MAX_CHARS = 10000;
 const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // "Rachel" — warm, natural
 const DEFAULT_TTS_MODEL = 'eleven_multilingual_v2';
 
@@ -68,6 +68,13 @@ export default async function (req) {
   return new Response(text, { status: upstream.status, headers: { ...cors, 'content-type': 'application/json' } });
 }
 
+function trimForTts(text) {
+  if (text.length <= TTS_MAX_CHARS) return text;
+  const slice = text.slice(0, TTS_MAX_CHARS);
+  const end = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '), slice.lastIndexOf('\n'));
+  return end > TTS_MAX_CHARS * 0.6 ? slice.slice(0, end + 1) : slice;
+}
+
 async function handleTts(req, cors) {
   const key = Deno.env.get('ELEVENLABS_API_KEY');
   if (!key) return json({ error: { message: 'Narration is not configured (no ELEVENLABS_API_KEY).' } }, 500, cors);
@@ -86,7 +93,7 @@ async function handleTts(req, cors) {
     method: 'POST',
     headers: { 'xi-api-key': key, 'content-type': 'application/json', 'accept': 'audio/mpeg' },
     body: JSON.stringify({
-      text: text.slice(0, TTS_MAX_CHARS),
+      text: trimForTts(text),
       model_id: model,
       voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.15, use_speaker_boost: true },
     }),

@@ -1038,6 +1038,10 @@ function openViewer(id) {
 
 let narrationAudio = null; // the premium <audio> element currently playing, if any
 
+// Bumped whenever how we generate narration changes (e.g. the Worker's length
+// cap), so previously cached clips are re-generated instead of replayed stale.
+const NARRATION_VERSION = 2;
+
 function stopSpeaking() {
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
   if (narrationAudio) {
@@ -1112,7 +1116,14 @@ async function narrate(m, text, btn) {
   if (wasOn || !text.trim()) return; // second tap = stop
 
   // Already have a real voice cached for this exact text → play instantly.
-  if (m && m.narrationBlob && m.narrationText === text) { playNarrationBlob(m.narrationBlob, btn); return; }
+  // In the read-only album we always play whatever was synced (we can't
+  // regenerate there); as the owner we only reuse the cache if it was made by
+  // the current narration version, so an old truncated clip re-voices in full.
+  if (m && m.narrationBlob && m.narrationText === text &&
+      (albumView || m.narrationVersion === NARRATION_VERSION)) {
+    playNarrationBlob(m.narrationBlob, btn);
+    return;
+  }
 
   // Generate a premium voice (owner only — the read-only album never generates).
   if (ttsEndpoint() && !albumView) {
@@ -1126,6 +1137,7 @@ async function narrate(m, text, btn) {
       if (m) {
         m.narrationBlob = blob;
         m.narrationText = text;
+        m.narrationVersion = NARRATION_VERSION;
         try { await dbPut(m); } catch (_) {}
         syncMemoryToAlbum(m); // so family hears the same real voice
       }
@@ -1650,6 +1662,7 @@ async function memoryToAlbumJSON(m) {
     photos, audio: m.audioBlob ? await blobToDataURL(m.audioBlob) : null,
     narration: m.narrationBlob ? await blobToDataURL(m.narrationBlob) : null,
     narrationText: m.narrationText || '',
+    narrationVersion: m.narrationVersion || 0,
   };
 }
 
@@ -1662,6 +1675,7 @@ function albumJSONToMemory(m) {
     audioBlob: m.audio ? dataURLToBlob(m.audio) : null,
     narrationBlob: m.narration ? dataURLToBlob(m.narration) : null,
     narrationText: m.narrationText || '',
+    narrationVersion: m.narrationVersion || 0,
   };
 }
 

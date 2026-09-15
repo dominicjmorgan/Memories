@@ -149,10 +149,18 @@ On the Worker → **Settings → Variables and Secrets**, add a **Secret**:
 
 Optional **Variables** (not secrets):
 - `ELEVENLABS_VOICE_ID` — the default voice for everyone. Blank uses `Rachel`
-  (a warm, natural narrator). Browse the
-  [voice library](https://elevenlabs.io/app/voice-library) and copy any voice's ID.
+  (a warm, natural narrator). **On the free tier, use a _Default_ (premade)
+  voice** — the community **Voice Library** requires a paid plan. Free-tier-safe
+  IDs include `EXAVITQu4vr4xnSDxMaL` (Sarah), `XB0fDUnXU5powFXDhCwa` (Charlotte),
+  and `pFZP5JQG7iQjIQuC4Bku` (Lily).
 - `ELEVENLABS_MODEL` — defaults to `eleven_multilingual_v2` (best quality).
-  Use `eleven_turbo_v2_5` for roughly half the cost and lower latency.
+  Use `eleven_turbo_v2_5` for roughly half the credit cost and lower latency —
+  handy on the free tier's monthly allowance.
+
+> **Length & credits:** narration is capped at 10,000 characters per story
+> (trimmed on a sentence boundary if longer). ElevenLabs bills ~1 credit per
+> character, and the free tier includes ~10,000 credits/month — so a few long
+> stories can use it up. `eleven_turbo_v2_5` stretches that roughly 2×.
 
 Re-deploy the Worker with the latest [`worker.js`](./worker.js) (it now handles
 the AI proxy, the album, **and** `/tts`).
