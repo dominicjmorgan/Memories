@@ -246,9 +246,11 @@ body { overflow-x: hidden; } /* gentle card tilts must never scroll the page sid
 .btn.ai { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-color: transparent; }
 .btn.ai:hover { background: color-mix(in srgb, var(--accent) 26%, transparent); }
 .btn.danger { color: var(--danger); }
-.narrate-btn { margin-top: 8px; }
+/* The AI narration is the primary "play" control in the viewer. */
+.narrate-btn { margin: 10px 0 4px; width: 100%; justify-content: center; background: var(--brand); color: #fff; border-color: transparent; font-weight: 700; }
+.narrate-btn:hover { background: var(--brand-dark); color: #fff; }
 .narrate-btn.on { background: color-mix(in srgb, var(--brand) 14%, transparent); border-color: var(--brand); color: var(--brand-dark); }
-.narrate-btn.on:hover { background: color-mix(in srgb, var(--brand) 22%, transparent); }
+.narrate-btn.on:hover { background: color-mix(in srgb, var(--brand) 22%, transparent); color: var(--brand-dark); }
 .narrate-btn.busy { opacity: 0.75; cursor: progress; animation: narratePulse 1.1s ease-in-out infinite; }
 @keyframes narratePulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.9; } }
 .btn.danger.ghost:hover { border-color: var(--danger); color: var(--danger); }
@@ -426,6 +428,9 @@ textarea { resize: vertical; }
 .viewer-date { color: var(--brand-dark); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.02em; }
 .viewer-story { font-family: var(--serif); font-size: 1.1rem; line-height: 1.7; white-space: pre-wrap; }
 .viewer-audio { width: 100%; margin: 6px 0; }
+/* Secondary "your original recording" disclosure, de-emphasised vs narration. */
+.viewer-recording { margin: 6px 0 2px; }
+.viewer-recording > summary { cursor: pointer; color: var(--ink-soft); font-size: 0.9rem; font-weight: 600; padding: 4px 0; }
 .viewer-transcript { color: var(--ink-soft); font-size: 0.9rem; border-left: 3px solid var(--line); padding-left: 12px; white-space: pre-wrap; }
 .viewer-transcript summary { cursor: pointer; font-weight: 600; color: var(--ink); margin-bottom: 8px; }
 .viewer-tags { display: flex; flex-wrap: wrap; gap: 6px; }

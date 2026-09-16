@@ -7,7 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
-const BUILD = 'v37'; // shown in Settings so we can confirm the live version
+const BUILD = 'v38'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
@@ -997,21 +997,15 @@ function openViewer(id) {
   date.textContent = fmtDate(m.date);
   body.appendChild(date);
 
-  if (m.audioBlob) {
-    const audio = document.createElement('audio');
-    audio.className = 'viewer-audio';
-    audio.controls = true;
-    audio.src = urlFor(m.audioBlob);
-    body.appendChild(audio);
-  }
-
+  // Primary way to hear a memory: the AI narration of the story.
   const narrateText = m.story || m.caption || m.transcript || '';
   const canPremium = (!!ttsEndpoint() && !albumView) || !!m.narrationBlob;
-  if (narrateText && (canPremium || 'speechSynthesis' in window)) {
+  const hasNarration = narrateText && (canPremium || 'speechSynthesis' in window);
+  if (hasNarration) {
     const nb = document.createElement('button');
     nb.type = 'button';
-    nb.className = 'btn ghost small narrate-btn';
-    nb.dataset.idle = '🔊 Read aloud';
+    nb.className = 'btn narrate-btn';
+    nb.dataset.idle = '🔊 Play the story';
     nb.textContent = nb.dataset.idle;
     nb.addEventListener('click', () => narrate(m, narrateText, nb));
     body.appendChild(nb);
@@ -1029,6 +1023,25 @@ function openViewer(id) {
     det.className = 'viewer-transcript';
     det.innerHTML = `<summary>What I said</summary>${escapeHtml(m.transcript)}`;
     body.appendChild(det);
+  }
+
+  // The original recording stays available but secondary — tucked into a
+  // collapsed disclosure so the AI narration is the default way to listen.
+  // (If there's no narration to play, show it expanded so it isn't buried.)
+  if (m.audioBlob) {
+    const rec = document.createElement('details');
+    rec.className = 'viewer-recording';
+    if (!hasNarration) rec.open = true;
+    const sum = document.createElement('summary');
+    sum.textContent = '🎙️ Play my voice memo';
+    rec.appendChild(sum);
+    const audio = document.createElement('audio');
+    audio.className = 'viewer-audio';
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = urlFor(m.audioBlob);
+    rec.appendChild(audio);
+    body.appendChild(rec);
   }
 
   if ((m.tags || []).length) {
