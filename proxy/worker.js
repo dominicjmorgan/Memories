@@ -152,30 +152,50 @@ async function handleAlbum(request, env, cors) {
     if (!isOwner) return err('Not authorized to publish.', 403, cors);
     const mem = body.memory;
     if (!mem || !mem.id) return err('Missing memory.', 400, cors);
-    await kv.put('mem:' + mem.id, JSON.stringify(mem));
-    const idx = JSON.parse((await kv.get('idx')) || '[]').filter((e) => e.id !== mem.id);
-    idx.push({ id: mem.id, date: mem.date || '', createdAt: mem.createdAt || 0 });
-    await kv.put('idx', JSON.stringify(idx));
+    // Store each memory under its own key, with the sort fields in metadata so
+    // listing never needs a shared index. (The old single "idx" key caused
+    // eventually-consistent read-modify-write races when publishing in bulk —
+    // only some memories survived it. We no longer read or write it.)
+    try {
+      await kv.put('mem:' + mem.id, JSON.stringify(mem), {
+        metadata: { date: mem.date || '', createdAt: mem.createdAt || 0 },
+      });
+    } catch (e) {
+      const msg = (e && e.message) || '';
+      // KV values are capped at 25 MB — a memory with a long recording can hit it.
+      if (/exceed|large|size|limit/i.test(msg)) {
+        return err('This memory is too large for the album (likely a long recording or many photos).', 413, cors);
+      }
+      return err('Album storage error: ' + (msg || 'write failed'), 502, cors);
+    }
     return json({ ok: true }, 200, cors);
   }
 
   if (action === 'delete') {
     if (!isOwner) return err('Not authorized.', 403, cors);
     await kv.delete('mem:' + body.id);
-    const idx = JSON.parse((await kv.get('idx')) || '[]').filter((e) => e.id !== body.id);
-    await kv.put('idx', JSON.stringify(idx));
     return json({ ok: true }, 200, cors);
   }
 
   if (action === 'list') {
     if (!readKeyOk) return err('This album link is not valid.', 401, cors);
     if (!passwordOk) return err('needs-password', 401, cors);
-    let idx = JSON.parse((await kv.get('idx')) || '[]');
-    idx.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
-    idx = idx.slice(0, 200);
+    // Enumerate memory keys directly — no shared index, so no write races.
+    const entries = [];
+    let cursor;
+    do {
+      const page = await kv.list({ prefix: 'mem:', cursor });
+      for (const k of page.keys) {
+        const md = k.metadata || {};
+        entries.push({ name: k.name, date: md.date || '', createdAt: md.createdAt || 0 });
+      }
+      cursor = page.list_complete ? null : page.cursor;
+    } while (cursor && entries.length < 1000);
+
+    entries.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
     const items = [];
-    for (const e of idx) {
-      const v = await kv.get('mem:' + e.id);
+    for (const e of entries.slice(0, 200)) {
+      const v = await kv.get(e.name);
       if (v) items.push(JSON.parse(v));
     }
     return json({ items }, 200, cors);

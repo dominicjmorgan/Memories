@@ -7,7 +7,7 @@
 
 /* ----------------------------- IndexedDB ----------------------------- */
 
-const BUILD = 'v38'; // shown in Settings so we can confirm the live version
+const BUILD = 'v39'; // shown in Settings so we can confirm the live version
 const DB_NAME = 'little-moments';
 const DB_VERSION = 1;
 const STORE = 'memories';
@@ -1988,6 +1988,7 @@ async function publishAllToAlbum() {
   const all = await dbGetAll();
   albumStatus(`Publishing ${all.length} memor${all.length === 1 ? 'y' : 'ies'}…`, 'working');
   let ok = 0;
+  const failures = [];
   for (const m of all) {
     try {
       const memory = await memoryToAlbumJSON(m);
@@ -1995,10 +1996,20 @@ async function publishAllToAlbum() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ action: 'put', ownerKey: settings.albumOwnerKey, memory }),
       });
-      if (res.ok) ok++;
-    } catch (_) {}
+      if (res.ok) { ok++; continue; }
+      let msg = ''; try { msg = (await res.json()).error?.message || ''; } catch (_) {}
+      failures.push({ title: m.title || 'Untitled', reason: msg || `failed (${res.status})` });
+    } catch (_) {
+      failures.push({ title: m.title || 'Untitled', reason: 'could not reach the album' });
+    }
   }
-  albumStatus(ok === all.length ? `Published all ${ok}. Family will see them now.` : `Published ${ok} of ${all.length}. Check your keys and try again.`, ok === all.length ? '' : 'error');
+  if (!failures.length) {
+    albumStatus(`Published all ${ok}. Family will see them shortly.`, '');
+  } else {
+    const shown = failures.slice(0, 3).map((f) => `“${f.title}” (${f.reason})`).join('; ');
+    const more = failures.length > 3 ? ` +${failures.length - 3} more` : '';
+    albumStatus(`Published ${ok} of ${all.length}. Couldn’t publish: ${shown}${more}.`, 'error');
+  }
 }
 
 function wireDialogs() {
